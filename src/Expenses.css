@@ -1,0 +1,251 @@
+.expenses-container {
+  padding: 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+  background: #fefcf9;
+  min-height: 100vh;
+}
+
+.expenses-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  border-bottom: 2px dashed #dcc9b6;
+  padding-bottom: 1rem;
+}
+
+.expenses-header h2 {
+  font-size: 2rem;
+  color: #2f1e12;
+}
+
+.expenses-summary {
+  display: flex;
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+}
+
+.summary-card {
+  background: white;
+  padding: 1.5rem 2rem;
+  border-radius: 16px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  border: 1px solid #efe4d8;
+  text-align: center;
+  flex: 1;
+  min-width: 150px;
+}
+
+.summary-card span {
+  color: #7a5e46;
+  font-size: 0.9rem;
+}
+
+.summary-card h3 {
+  font-size: 1.8rem;
+  color: #2f1e12;
+  margin-top: 0.3rem;
+}
+
+.summary-card.deyn h3 {
+  color: #f44336;
+}
+
+.summary-card.cash h3 {
+  color: #4CAF50;
+}
+
+.filter-container {
+  display: flex;
+  gap: 2rem;
+  margin-bottom: 1.5rem;
+  background: #f3ece4;
+  padding: 1rem 1.5rem;
+  border-radius: 12px;
+  border: 1px solid #e2d3c2;
+  flex-wrap: wrap;
+}
+
+.filter-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.filter-group label {
+  font-weight: 500;
+  color: #4d3626;
+}
+
+.filter-group select {
+  padding: 0.5rem 1rem;
+  border: 2px solid #dcc9b6;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  background: white;
+  cursor: pointer;
+}
+
+.add-expense-form {
+  background: #f3ece4;
+  padding: 1.5rem;
+  border-radius: 16px;
+  margin-bottom: 2rem;
+  border: 1px solid #e2d3c2;
+}
+
+.add-expense-form h3 {
+  color: #2f1e12;
+  margin-bottom: 1rem;
+}
+
+.form-row {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+.form-row input, .form-row select {
+  flex: 1;
+  padding: 0.8rem 1rem;
+  border: 2px solid #dcc9b6;
+  border-radius: 8px;
+  font-size: 1rem;
+  background: white;
+  min-width: 150px;
+}
+
+.form-row input:focus, .form-row select:focus {
+  outline: none;
+  border-color: #b76e3e;
+}
+
+.save-btn {
+  background: #4CAF50;
+  color: white;
+  border: none;
+  padding: 0.8rem 2rem;
+  border-radius: 8px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.save-btn:hover {
+  background: #45a049;
+}
+
+.expenses-table-wrapper {
+  overflow-x: auto;
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  border: 1px solid #efe4d8;
+  padding: 0.5rem;
+}
+
+.expenses-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.95rem;
+}
+
+.expenses-table th {
+  background: #f3ece4;
+  color: #2f1e12;
+  padding: 1rem 0.8rem;
+  text-align: left;
+  font-weight: 600;
+  border-bottom: 2px solid #dcc9b6;
+}
+
+.expenses-table td {
+  padding: 0.8rem;
+  border-bottom: 1px solid #f0eae3;
+}
+
+.expenses-table tr:hover {
+  background: #faf6f0;
+}
+
+.category-badge {
+  background: #e8ddd2;
+  padding: 0.2rem 0.7rem;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  color: #4d3626;
+}
+
+.type-badge {
+  padding: 0.2rem 0.7rem;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.type-badge.deyn {
+  background: #ffebee;
+  color: #c62828;
+}
+
+.type-badge.cash {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.delete-btn {
+  background: #f44336;
+  color: white;
+  border: none;
+  padding: 0.3rem 0.7rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background 0.2s;
+}
+
+.delete-btn:hover {
+  background: #d32f2f;
+}
+
+.add-btn {
+  background: #b76e3e;
+  color: white;
+  border: none;
+  padding: 0.6rem 1.5rem;
+  border-radius: 8px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.add-btn:hover {
+  background: #9a5a30;
+}
+
+@media (max-width: 700px) {
+  .expenses-header {
+    flex-direction: column;
+    gap: 1rem;
+    align-items: stretch;
+  }
+  .expenses-summary {
+    flex-direction: column;
+  }
+  .filter-container {
+    flex-direction: column;
+    gap: 0.8rem;
+  }
+  .form-row {
+    flex-direction: column;
+  }
+  .expenses-table {
+    font-size: 0.8rem;
+  }
+  .expenses-table th, .expenses-table td {
+    padding: 0.4rem;
+  }
+}
