@@ -7,8 +7,8 @@ import Login from './Login';
 import Register from './Register';
 import { getFoodImage } from './foodImages';
 import './App.css';
+const API_BASE_URL = 'https://restu-production.up.railway.app';
 
-const API_BASE_URL = 'http://localhost:5000';
 
 function App() {
   const [menuItems, setMenuItems] = useState([]);

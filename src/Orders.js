@@ -3,7 +3,7 @@ import axios from 'axios';
 import './Orders.css';
 
 // ===== BACKEND URL (Kaliya Localhost) =====
-const API_BASE_URL = 'http://localhost:5000';
+const API_BASE_URL = 'https://restu-production.up.railway.app';
 
 function Orders() {
   const [orders, setOrders] = useState([]);
