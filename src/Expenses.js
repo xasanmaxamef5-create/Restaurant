@@ -1,15 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 import './Expenses.css';
 
-function Expenses() {
-  const [expenses, setExpenses] = useState([
-    { id: 1, name: 'Vegetables', category: 'Food', amount: 150, date: '2026-07-10', type: 'deyn' },
-    { id: 2, name: 'Meat', category: 'Food', amount: 300, date: '2026-07-09', type: 'cash' },
-    { id: 3, name: 'Electricity Bill', category: 'Utilities', amount: 80, date: '2026-07-08', type: 'deyn' },
-    { id: 4, name: 'Water Bill', category: 'Utilities', amount: 40, date: '2026-07-07', type: 'cash' },
-    { id: 5, name: 'Oil & Spices', category: 'Kitchen', amount: 120, date: '2026-07-06', type: 'deyn' },
-  ]);
+const API_BASE_URL = 'https://restu-production.up.railway.app';
 
+function Expenses() {
+  const [expenses, setExpenses] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [showAddForm, setShowAddForm] = useState(false);
   const [newExpense, setNewExpense] = useState({
     name: '',
@@ -23,19 +21,54 @@ function Expenses() {
 
   const categories = ['Food', 'Utilities', 'Kitchen', 'Cleaning', 'Staff', 'Other'];
 
-  const addExpense = () => {
-    if (newExpense.name && newExpense.amount > 0) {
-      setExpenses([...expenses, { ...newExpense, id: expenses.length + 1 }]);
-      setNewExpense({ name: '', category: 'Food', amount: 0, date: new Date().toISOString().split('T')[0], type: 'cash' });
-      setShowAddForm(false);
+  // Fetch expenses from API
+  useEffect(() => {
+    fetchExpenses();
+  }, []);
+
+  const fetchExpenses = async () => {
+    try {
+      setLoading(true);
+      const response = await axios.get(`${API_BASE_URL}/api/expenses`);
+      setExpenses(response.data);
+      setError(null);
+    } catch (err) {
+      console.error('Error fetching expenses:', err);
+      setError('Failed to load expenses');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const deleteExpense = (id) => {
-    setExpenses(expenses.filter(exp => exp.id !== id));
+  const addExpense = async () => {
+    if (!newExpense.name || newExpense.amount <= 0) {
+      alert('Please enter expense name and amount!');
+      return;
+    }
+
+    try {
+      const response = await axios.post(`${API_BASE_URL}/api/expenses`, newExpense);
+      setExpenses([...expenses, response.data]);
+      setNewExpense({ name: '', category: 'Food', amount: 0, date: new Date().toISOString().split('T')[0], type: 'cash' });
+      setShowAddForm(false);
+    } catch (err) {
+      console.error('Error adding expense:', err);
+      alert('Failed to add expense');
+    }
   };
 
-  // Filter expenses
+  const deleteExpense = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this expense?')) return;
+
+    try {
+      await axios.delete(`${API_BASE_URL}/api/expenses/${id}`);
+      setExpenses(expenses.filter(exp => exp.id !== id));
+    } catch (err) {
+      console.error('Error deleting expense:', err);
+      alert('Failed to delete expense');
+    }
+  };
+
   const filteredExpenses = expenses.filter(exp => {
     const typeMatch = filterType === 'all' || exp.type === filterType;
     const categoryMatch = filterCategory === 'all' || exp.category === filterCategory;
@@ -46,6 +79,9 @@ function Expenses() {
   const totalDeyn = filteredExpenses.filter(e => e.type === 'deyn').reduce((sum, e) => sum + e.amount, 0);
   const totalCash = filteredExpenses.filter(e => e.type === 'cash').reduce((sum, e) => sum + e.amount, 0);
 
+  if (loading) return <div className="loading">Loading expenses...</div>;
+  if (error) return <div className="error">{error}</div>;
+
   return (
     <div className="expenses-container">
       <div className="expenses-header">
@@ -55,7 +91,6 @@ function Expenses() {
         </button>
       </div>
 
-      {/* Summary Cards */}
       <div className="expenses-summary">
         <div className="summary-card">
           <span>Total Expenses</span>
@@ -71,7 +106,6 @@ function Expenses() {
         </div>
       </div>
 
-      {/* Filters */}
       <div className="filter-container">
         <div className="filter-group">
           <label>Type:</label>
@@ -90,7 +124,6 @@ function Expenses() {
         </div>
       </div>
 
-      {/* Add Form */}
       {showAddForm && (
         <div className="add-expense-form">
           <h3>Add New Expense</h3>
@@ -132,7 +165,6 @@ function Expenses() {
         </div>
       )}
 
-      {/* Expenses Table */}
       <div className="expenses-table-wrapper">
         <table className="expenses-table">
           <thead>

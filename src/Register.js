@@ -1,5 +1,8 @@
 import React, { useState } from 'react';
+import axios from 'axios';
 import './Register.css';
+
+const API_BASE_URL = 'https://restu-production.up.railway.app';
 
 function Register({ onRegister, switchToLogin }) {
   const [formData, setFormData] = useState({
@@ -10,6 +13,7 @@ function Register({ onRegister, switchToLogin }) {
   });
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -17,10 +21,9 @@ function Register({ onRegister, switchToLogin }) {
     setSuccess('');
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // Validation
     if (!formData.name || !formData.email || !formData.password || !formData.confirmPassword) {
       setError('Please fill all fields!');
       return;
@@ -36,34 +39,30 @@ function Register({ onRegister, switchToLogin }) {
       return;
     }
 
-    // Save user to localStorage
-    const users = JSON.parse(localStorage.getItem('users') || '[]');
-    
-    // Check if email already exists
-    if (users.find(user => user.email === formData.email)) {
-      setError('Email already registered!');
-      return;
-    }
+    setLoading(true);
 
-    // Add new user
-    const newUser = {
-      id: Date.now(),
-      name: formData.name,
-      email: formData.email,
-      password: formData.password,
-      createdAt: new Date().toISOString()
-    };
-    
-    users.push(newUser);
-    localStorage.setItem('users', JSON.stringify(users));
-    
-    setSuccess('✅ Registration successful! Please login.');
-    setFormData({ name: '', email: '', password: '', confirmPassword: '' });
-    
-    // Auto switch to login after 2 seconds
-    setTimeout(() => {
-      switchToLogin();
-    }, 2000);
+    try {
+      const response = await axios.post(`${API_BASE_URL}/api/register`, {
+        name: formData.name,
+        email: formData.email,
+        password: formData.password
+      });
+
+      if (response.data.success) {
+        setSuccess('✅ Registration successful! Please login.');
+        setFormData({ name: '', email: '', password: '', confirmPassword: '' });
+        setTimeout(() => {
+          switchToLogin();
+        }, 2000);
+      } else {
+        setError(response.data.message || 'Registration failed');
+      }
+    } catch (error) {
+      console.error('Registration error:', error);
+      setError('Registration failed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -87,6 +86,7 @@ function Register({ onRegister, switchToLogin }) {
               placeholder="Enter your full name"
               value={formData.name}
               onChange={handleChange}
+              disabled={loading}
             />
           </div>
 
@@ -98,6 +98,7 @@ function Register({ onRegister, switchToLogin }) {
               placeholder="Enter your email"
               value={formData.email}
               onChange={handleChange}
+              disabled={loading}
             />
           </div>
 
@@ -109,6 +110,7 @@ function Register({ onRegister, switchToLogin }) {
               placeholder="Create a password (min 6 chars)"
               value={formData.password}
               onChange={handleChange}
+              disabled={loading}
             />
           </div>
 
@@ -120,10 +122,13 @@ function Register({ onRegister, switchToLogin }) {
               placeholder="Confirm your password"
               value={formData.confirmPassword}
               onChange={handleChange}
+              disabled={loading}
             />
           </div>
 
-          <button type="submit" className="auth-btn">Register</button>
+          <button type="submit" className="auth-btn" disabled={loading}>
+            {loading ? 'Registering...' : 'Register'}
+          </button>
         </form>
 
         <div className="auth-footer">

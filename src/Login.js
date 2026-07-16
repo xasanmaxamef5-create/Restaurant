@@ -1,5 +1,8 @@
 import React, { useState } from 'react';
+import axios from 'axios';
 import './Login.css';
+
+const API_BASE_URL = 'https://restu-production.up.railway.app';
 
 function Login({ onLogin, switchToRegister }) {
   const [formData, setFormData] = useState({
@@ -8,6 +11,7 @@ function Login({ onLogin, switchToRegister }) {
   });
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -15,7 +19,7 @@ function Login({ onLogin, switchToRegister }) {
     setSuccess('');
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     
     if (!formData.email || !formData.password) {
@@ -23,30 +27,34 @@ function Login({ onLogin, switchToRegister }) {
       return;
     }
 
-    // Get users from localStorage
-    const users = JSON.parse(localStorage.getItem('users') || '[]');
-    
-    // Find user
-    const user = users.find(u => u.email === formData.email && u.password === formData.password);
-    
-    if (!user) {
-      setError('Invalid email or password!');
-      return;
-    }
+    setLoading(true);
 
-    // Save current user
-    localStorage.setItem('currentUser', JSON.stringify({
-      id: user.id,
-      name: user.name,
-      email: user.email
-    }));
-    
-    setSuccess('✅ Login successful!');
-    
-    // Call onLogin callback
-    setTimeout(() => {
-      onLogin(user);
-    }, 500);
+    try {
+      const response = await axios.post(`${API_BASE_URL}/api/login`, {
+        email: formData.email,
+        password: formData.password
+      });
+
+      if (response.data.success) {
+        const user = response.data.user;
+        localStorage.setItem('currentUser', JSON.stringify({
+          id: user.id,
+          name: user.name,
+          email: user.email
+        }));
+        setSuccess('✅ Login successful!');
+        setTimeout(() => {
+          onLogin(user);
+        }, 500);
+      } else {
+        setError(response.data.message || 'Invalid credentials');
+      }
+    } catch (error) {
+      console.error('Login error:', error);
+      setError('Login failed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -70,6 +78,7 @@ function Login({ onLogin, switchToRegister }) {
               placeholder="Enter your email"
               value={formData.email}
               onChange={handleChange}
+              disabled={loading}
             />
           </div>
 
@@ -81,10 +90,13 @@ function Login({ onLogin, switchToRegister }) {
               placeholder="Enter your password"
               value={formData.password}
               onChange={handleChange}
+              disabled={loading}
             />
           </div>
 
-          <button type="submit" className="auth-btn">Login</button>
+          <button type="submit" className="auth-btn" disabled={loading}>
+            {loading ? 'Logging in...' : 'Login'}
+          </button>
         </form>
 
         <div className="auth-footer">
