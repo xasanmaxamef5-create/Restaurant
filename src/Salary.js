@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { exportPDF } from './PDFExport';
 import './Salary.css';
 
 const API_BASE_URL = 'https://restu-production.up.railway.app';
@@ -53,7 +54,6 @@ function Salary() {
 
   const deleteEmployee = async (id) => {
     if (!window.confirm('Are you sure you want to delete this employee?')) return;
-
     try {
       await axios.delete(`${API_BASE_URL}/api/salary/${id}`);
       setEmployees(employees.filter(emp => emp.id !== id));
@@ -67,104 +67,86 @@ function Salary() {
     return sum + calculateTotalSalary(emp.hours, emp.salary, emp.bonus);
   }, 0);
 
+  const handleExportPDF = () => {
+    exportPDF('salary-content', `Salary_${new Date().toISOString().split('T')[0]}`);
+  };
+
   if (loading) return <div className="loading">Loading employees...</div>;
   if (error) return <div className="error">{error}</div>;
 
   return (
     <div className="salary-container">
-      <div className="salary-header">
-        <h2>💰 Mushaar Shaqaalaha</h2>
-        <button className="add-btn" onClick={() => setShowAddForm(!showAddForm)}>
-          {showAddForm ? '✖ Cancel' : '➕ Add Employee'}
-        </button>
-      </div>
-
-      <div className="payroll-summary">
-        <div className="summary-card">
-          <span>Total Employees</span>
-          <h3>{employees.length}</h3>
-        </div>
-        <div className="summary-card">
-          <span>Total Payroll</span>
-          <h3>${totalPayroll.toFixed(2)}</h3>
-        </div>
-      </div>
-
-      {showAddForm && (
-        <div className="add-employee-form">
-          <h3>Add New Employee</h3>
-          <div className="form-row">
-            <input
-              type="text"
-              placeholder="Full Name"
-              value={newEmployee.name}
-              onChange={(e) => setNewEmployee({ ...newEmployee, name: e.target.value })}
-            />
-            <input
-              type="text"
-              placeholder="Role (e.g. Cook, Waiter)"
-              value={newEmployee.role}
-              onChange={(e) => setNewEmployee({ ...newEmployee, role: e.target.value })}
-            />
+      <div id="salary-content">
+        <div className="salary-header">
+          <h2>💰 Mushaar Shaqaalaha</h2>
+          <div style={{ display: 'flex', gap: '0.8rem' }}>
+            <button onClick={handleExportPDF} className="pdf-btn">📄 Export PDF</button>
+            <button className="add-btn" onClick={() => setShowAddForm(!showAddForm)}>
+              {showAddForm ? '✖ Cancel' : '➕ Add Employee'}
+            </button>
           </div>
-          <div className="form-row">
-            <input
-              type="number"
-              placeholder="Monthly Salary"
-              value={newEmployee.salary || ''}
-              onChange={(e) => setNewEmployee({ ...newEmployee, salary: Number(e.target.value) })}
-            />
-            <input
-              type="number"
-              placeholder="Hours Worked"
-              value={newEmployee.hours || ''}
-              onChange={(e) => setNewEmployee({ ...newEmployee, hours: Number(e.target.value) })}
-            />
-            <input
-              type="number"
-              placeholder="Bonus"
-              value={newEmployee.bonus || ''}
-              onChange={(e) => setNewEmployee({ ...newEmployee, bonus: Number(e.target.value) })}
-            />
-          </div>
-          <button className="save-btn" onClick={addEmployee}>💾 Save Employee</button>
         </div>
-      )}
 
-      <div className="employees-table-wrapper">
-        <table className="employees-table">
-          <thead>
-            <tr>
-              <th>#</th>
-              <th>Name</th>
-              <th>Role</th>
-              <th>Monthly Salary</th>
-              <th>Hours</th>
-              <th>Bonus</th>
-              <th>Total Salary</th>
-              <th>Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            {employees.map((emp, index) => {
-              const total = calculateTotalSalary(emp.hours, emp.salary, emp.bonus);
-              return (
-                <tr key={emp.id}>
-                  <td>{index + 1}</td>
-                  <td><strong>{emp.name}</strong></td>
-                  <td>{emp.role}</td>
-                  <td>${emp.salary.toFixed(2)}</td>
-                  <td>{emp.hours}h</td>
-                  <td>${emp.bonus.toFixed(2)}</td>
-                  <td><span className="total-salary">${total.toFixed(2)}</span></td>
-                  <td>
-                    <button className="delete-btn" onClick={() => deleteEmployee(emp.id)}>🗑️</button>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+        <div className="payroll-summary">
+          <div className="summary-card">
+            <span>Total Employees</span>
+            <h3>{employees.length}</h3>
+          </div>
+          <div className="summary-card">
+            <span>Total Payroll</span>
+            <h3>${totalPayroll.toFixed(2)}</h3>
+          </div>
+        </div>
+
+        {showAddForm && (
+          <div className="add-employee-form">
+            <h3>Add New Employee</h3>
+            <div className="form-row">
+              <input type="text" placeholder="Full Name" value={newEmployee.name} onChange={(e) => setNewEmployee({ ...newEmployee, name: e.target.value })} />
+              <input type="text" placeholder="Role" value={newEmployee.role} onChange={(e) => setNewEmployee({ ...newEmployee, role: e.target.value })} />
+            </div>
+            <div className="form-row">
+              <input type="number" placeholder="Monthly Salary" value={newEmployee.salary || ''} onChange={(e) => setNewEmployee({ ...newEmployee, salary: Number(e.target.value) })} />
+              <input type="number" placeholder="Hours Worked" value={newEmployee.hours || ''} onChange={(e) => setNewEmployee({ ...newEmployee, hours: Number(e.target.value) })} />
+              <input type="number" placeholder="Bonus" value={newEmployee.bonus || ''} onChange={(e) => setNewEmployee({ ...newEmployee, bonus: Number(e.target.value) })} />
+            </div>
+            <button className="save-btn" onClick={addEmployee}>💾 Save Employee</button>
+          </div>
+        )}
+
+        <div className="employees-table-wrapper">
+          <table className="employees-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Name</th>
+                <th>Role</th>
+                <th>Monthly Salary</th>
+                <th>Hours</th>
+                <th>Bonus</th>
+                <th>Total Salary</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {employees.map((emp, index) => {
+                const total = calculateTotalSalary(emp.hours, emp.salary, emp.bonus);
+                return (
+                  <tr key={emp.id}>
+                    <td>{index + 1}</td>
+                    <td><strong>{emp.name}</strong></td>
+                    <td>{emp.role}</td>
+                    <td>${emp.salary.toFixed(2)}</td>
+                    <td>{emp.hours}h</td>
+                    <td>${emp.bonus.toFixed(2)}</td>
+                    <td><span className="total-salary">${total.toFixed(2)}</span></td>
+                    <td><button className="delete-btn" onClick={() => deleteEmployee(emp.id)}>🗑️</button></td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { exportPDF } from './PDFExport';
 import './Expenses.css';
 
 const API_BASE_URL = 'https://restu-production.up.railway.app';
@@ -21,7 +22,6 @@ function Expenses() {
 
   const categories = ['Food', 'Utilities', 'Kitchen', 'Cleaning', 'Staff', 'Other'];
 
-  // Fetch expenses from API
   useEffect(() => {
     fetchExpenses();
   }, []);
@@ -59,7 +59,6 @@ function Expenses() {
 
   const deleteExpense = async (id) => {
     if (!window.confirm('Are you sure you want to delete this expense?')) return;
-
     try {
       await axios.delete(`${API_BASE_URL}/api/expenses/${id}`);
       setExpenses(expenses.filter(exp => exp.id !== id));
@@ -79,133 +78,122 @@ function Expenses() {
   const totalDeyn = filteredExpenses.filter(e => e.type === 'deyn').reduce((sum, e) => sum + e.amount, 0);
   const totalCash = filteredExpenses.filter(e => e.type === 'cash').reduce((sum, e) => sum + e.amount, 0);
 
+  const handleExportPDF = () => {
+    exportPDF('expenses-content', `Expenses_${new Date().toISOString().split('T')[0]}`);
+  };
+
   if (loading) return <div className="loading">Loading expenses...</div>;
   if (error) return <div className="error">{error}</div>;
 
   return (
     <div className="expenses-container">
-      <div className="expenses-header">
-        <h2>💰 Kharashaadka Maqaayada</h2>
-        <button className="add-btn" onClick={() => setShowAddForm(!showAddForm)}>
-          {showAddForm ? '✖ Cancel' : '➕ Add Expense'}
-        </button>
-      </div>
+      <div id="expenses-content">
+        <div className="expenses-header">
+          <h2>💰 Kharashaadka Maqaayada</h2>
+          <div style={{ display: 'flex', gap: '0.8rem' }}>
+            <button onClick={handleExportPDF} className="pdf-btn">📄 Export PDF</button>
+            <button className="add-btn" onClick={() => setShowAddForm(!showAddForm)}>
+              {showAddForm ? '✖ Cancel' : '➕ Add Expense'}
+            </button>
+          </div>
+        </div>
 
-      <div className="expenses-summary">
-        <div className="summary-card">
-          <span>Total Expenses</span>
-          <h3>${totalExpenses.toFixed(2)}</h3>
+        <div className="expenses-summary">
+          <div className="summary-card">
+            <span>Total Expenses</span>
+            <h3>${totalExpenses.toFixed(2)}</h3>
+          </div>
+          <div className="summary-card deyn">
+            <span>Deyn (Amaah)</span>
+            <h3>${totalDeyn.toFixed(2)}</h3>
+          </div>
+          <div className="summary-card cash">
+            <span>Cash (La bixiyay)</span>
+            <h3>${totalCash.toFixed(2)}</h3>
+          </div>
         </div>
-        <div className="summary-card deyn">
-          <span>Deyn (Amaah)</span>
-          <h3>${totalDeyn.toFixed(2)}</h3>
-        </div>
-        <div className="summary-card cash">
-          <span>Cash (La bixiyay)</span>
-          <h3>${totalCash.toFixed(2)}</h3>
-        </div>
-      </div>
 
-      <div className="filter-container">
-        <div className="filter-group">
-          <label>Type:</label>
-          <select value={filterType} onChange={(e) => setFilterType(e.target.value)}>
-            <option value="all">All</option>
-            <option value="deyn">Deyn (Amaah)</option>
-            <option value="cash">Cash (La bixiyay)</option>
-          </select>
-        </div>
-        <div className="filter-group">
-          <label>Category:</label>
-          <select value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)}>
-            <option value="all">All Categories</option>
-            {categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
-          </select>
-        </div>
-      </div>
-
-      {showAddForm && (
-        <div className="add-expense-form">
-          <h3>Add New Expense</h3>
-          <div className="form-row">
-            <input
-              type="text"
-              placeholder="Expense Name"
-              value={newExpense.name}
-              onChange={(e) => setNewExpense({ ...newExpense, name: e.target.value })}
-            />
-            <select
-              value={newExpense.category}
-              onChange={(e) => setNewExpense({ ...newExpense, category: e.target.value })}
-            >
+        <div className="filter-container">
+          <div className="filter-group">
+            <label>Type:</label>
+            <select value={filterType} onChange={(e) => setFilterType(e.target.value)}>
+              <option value="all">All</option>
+              <option value="deyn">Deyn (Amaah)</option>
+              <option value="cash">Cash (La bixiyay)</option>
+            </select>
+          </div>
+          <div className="filter-group">
+            <label>Category:</label>
+            <select value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)}>
+              <option value="all">All Categories</option>
               {categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
             </select>
           </div>
-          <div className="form-row">
-            <input
-              type="number"
-              placeholder="Amount ($)"
-              value={newExpense.amount || ''}
-              onChange={(e) => setNewExpense({ ...newExpense, amount: Number(e.target.value) })}
-            />
-            <input
-              type="date"
-              value={newExpense.date}
-              onChange={(e) => setNewExpense({ ...newExpense, date: e.target.value })}
-            />
-            <select
-              value={newExpense.type}
-              onChange={(e) => setNewExpense({ ...newExpense, type: e.target.value })}
-            >
-              <option value="cash">Cash (La bixiyay)</option>
-              <option value="deyn">Deyn (Amaah)</option>
-            </select>
-          </div>
-          <button className="save-btn" onClick={addExpense}>💾 Save Expense</button>
         </div>
-      )}
 
-      <div className="expenses-table-wrapper">
-        <table className="expenses-table">
-          <thead>
-            <tr>
-              <th>#</th>
-              <th>Name</th>
-              <th>Category</th>
-              <th>Amount</th>
-              <th>Date</th>
-              <th>Type</th>
-              <th>Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredExpenses.length === 0 ? (
+        {showAddForm && (
+          <div className="add-expense-form">
+            <h3>Add New Expense</h3>
+            <div className="form-row">
+              <input type="text" placeholder="Expense Name" value={newExpense.name} onChange={(e) => setNewExpense({ ...newExpense, name: e.target.value })} />
+              <select value={newExpense.category} onChange={(e) => setNewExpense({ ...newExpense, category: e.target.value })}>
+                {categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+              </select>
+            </div>
+            <div className="form-row">
+              <input type="number" placeholder="Amount ($)" value={newExpense.amount || ''} onChange={(e) => setNewExpense({ ...newExpense, amount: Number(e.target.value) })} />
+              <input type="date" value={newExpense.date} onChange={(e) => setNewExpense({ ...newExpense, date: e.target.value })} />
+              <select value={newExpense.type} onChange={(e) => setNewExpense({ ...newExpense, type: e.target.value })}>
+                <option value="cash">Cash (La bixiyay)</option>
+                <option value="deyn">Deyn (Amaah)</option>
+              </select>
+            </div>
+            <button className="save-btn" onClick={addExpense}>💾 Save Expense</button>
+          </div>
+        )}
+
+        <div className="expenses-table-wrapper">
+          <table className="expenses-table">
+            <thead>
               <tr>
-                <td colSpan="7" style={{ textAlign: 'center', padding: '2rem', color: '#7a5e46' }}>
-                  No expenses found
-                </td>
+                <th>#</th>
+                <th>Name</th>
+                <th>Category</th>
+                <th>Amount</th>
+                <th>Date</th>
+                <th>Type</th>
+                <th>Action</th>
               </tr>
-            ) : (
-              filteredExpenses.map((exp, index) => (
-                <tr key={exp.id}>
-                  <td>{index + 1}</td>
-                  <td><strong>{exp.name}</strong></td>
-                  <td><span className="category-badge">{exp.category}</span></td>
-                  <td>${exp.amount.toFixed(2)}</td>
-                  <td>{exp.date}</td>
-                  <td>
-                    <span className={`type-badge ${exp.type}`}>
-                      {exp.type === 'deyn' ? '💳 Deyn' : '💵 Cash'}
-                    </span>
-                  </td>
-                  <td>
-                    <button className="delete-btn" onClick={() => deleteExpense(exp.id)}>🗑️</button>
+            </thead>
+            <tbody>
+              {filteredExpenses.length === 0 ? (
+                <tr>
+                  <td colSpan="7" style={{ textAlign: 'center', padding: '2rem', color: '#7a5e46' }}>
+                    No expenses found
                   </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+              ) : (
+                filteredExpenses.map((exp, index) => (
+                  <tr key={exp.id}>
+                    <td>{index + 1}</td>
+                    <td><strong>{exp.name}</strong></td>
+                    <td><span className="category-badge">{exp.category}</span></td>
+                    <td>${exp.amount.toFixed(2)}</td>
+                    <td>{exp.date}</td>
+                    <td>
+                      <span className={`type-badge ${exp.type}`}>
+                        {exp.type === 'deyn' ? '💳 Deyn' : '💵 Cash'}
+                      </span>
+                    </td>
+                    <td>
+                      <button className="delete-btn" onClick={() => deleteExpense(exp.id)}>🗑️</button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
