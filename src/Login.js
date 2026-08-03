@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import axios from 'axios';
+import API_BASE_URL from './apiConfig';
 import './Login.css';
-
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://restu-production.up.railway.app';
 
 function Login({ onLogin, switchToRegister }) {
   const [formData, setFormData] = useState({

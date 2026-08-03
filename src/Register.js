@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import axios from 'axios';
+import API_BASE_URL from './apiConfig';
 import './Register.css';
-
-const API_BASE_URL = 'http://localhost:5000';
 
 function Register({ onRegister, switchToLogin }) {
   const [formData, setFormData] = useState({

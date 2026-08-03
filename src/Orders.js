@@ -2,9 +2,8 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import axios from 'axios';
 import { exportPDF } from './PDFExport';
 import { exportToExcel } from './ExcelExport';
+import API_BASE_URL from './apiConfig';
 import './Orders.css';
-
-const API_BASE_URL = 'http://localhost:5000';
 
 // Create an axios instance with a request interceptor to add the auth token
 const api = axios.create({

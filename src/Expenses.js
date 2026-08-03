@@ -2,9 +2,8 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { exportPDF } from './PDFExport';
 import { exportToExcel } from './ExcelExport';
+import API_BASE_URL from './apiConfig';
 import './Expenses.css';
-
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://restu-production.up.railway.app';
 
 // Create axios instance with default config
 const api = axios.create({
