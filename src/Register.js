@@ -3,7 +3,7 @@ import axios from 'axios';
 import API_BASE_URL from './apiConfig';
 import './Register.css';
 
-function Register({ onRegister, switchToLogin }) {
+function Register({ switchToLogin }) {
   const [formData, setFormData] = useState({
     name: '',
     email: '',

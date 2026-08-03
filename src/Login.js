@@ -2,8 +2,9 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import API_BASE_URL from './apiConfig';
 import './Login.css';
+import { useAuth } from './AuthContext';
 
-function Login({ onLogin, switchToRegister }) {
+function Login({ switchToRegister }) {
   const [formData, setFormData] = useState({
     email: '',
     password: ''
@@ -11,6 +12,7 @@ function Login({ onLogin, switchToRegister }) {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
+  const { login } = useAuth();
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -37,18 +39,8 @@ function Login({ onLogin, switchToRegister }) {
       if (response.data.success) {
         const user = response.data.user;
         const token = response.data.token;
-        
-        localStorage.setItem('currentUser', JSON.stringify({
-          id: user.id,
-          name: user.name,
-          email: user.email
-        }));
-        localStorage.setItem('authToken', token);
-        
         setSuccess('✅ Login successful!');
-        setTimeout(() => {
-          onLogin(user);
-        }, 500);
+        login(user, token); // Use login from AuthContext
       } else {
         setError(response.data.message || 'Invalid credentials');
       }

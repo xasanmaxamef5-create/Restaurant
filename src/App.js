@@ -7,6 +7,7 @@ import Login from './Login';
 import Register from './Register';
 import { getFoodImage } from './foodImages';
 import API_BASE_URL from './apiConfig';
+import { useAuth } from './AuthContext';
 import './App.css';
 
 
@@ -32,19 +33,8 @@ function App() {
   });
   const [passwordMessage, setPasswordMessage] = useState({ type: '', text: '' });
   
-  // Auth state
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [currentUser, setCurrentUser] = useState(null);
+  const { isAuthenticated, currentUser, logout } = useAuth();
   const [showLogin, setShowLogin] = useState(true);
-
-  // Check if user is already logged in
-  useEffect(() => {
-    const user = localStorage.getItem('currentUser');
-    if (user) {
-      setCurrentUser(JSON.parse(user));
-      setIsAuthenticated(true);
-    }
-  }, []);
 
   // Fetch menu
   const fetchMenu = () => {
@@ -65,19 +55,6 @@ function App() {
     fetchMenu();
   }, []);
 
-  // Auth functions
-  const handleLogin = (user) => {
-    setCurrentUser(user);
-    setIsAuthenticated(true);
-  };
-
-  const handleLogout = () => {
-    localStorage.removeItem('currentUser');
-    localStorage.removeItem('authToken');
-    setIsAuthenticated(false);
-    setCurrentUser(null);
-  };
-
   const switchToRegister = () => setShowLogin(false);
   const switchToLogin = () => setShowLogin(true);
 
@@ -86,9 +63,9 @@ function App() {
     return (
       <div>
         {showLogin ? (
-          <Login onLogin={handleLogin} switchToRegister={switchToRegister} />
+          <Login switchToRegister={switchToRegister} />
         ) : (
-          <Register onRegister={handleLogin} switchToLogin={switchToLogin} />
+          <Register switchToLogin={switchToLogin} />
         )}
       </div>
     );
@@ -207,8 +184,8 @@ function App() {
       <div>
         <div style={{ padding: '1rem 2rem', background: '#FFF8F0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #E8DDD2' }}>
           <button onClick={() => setShowOrders(false)} className="btn btn-primary">← Back to Menu</button>
-          <h2 style={{ color: '#E53935' }}>📋 Orders</h2>
-          <button onClick={handleLogout} className="btn btn-danger" style={{ background: '#E53935', padding: '0.4rem 1rem' }}>Logout</button>
+          <h2 style={{ color: '#E53935' }}>📋 Dalabaadka</h2>
+          <button onClick={logout} className="btn btn-danger" style={{ background: '#E53935', padding: '0.4rem 1rem' }}>Logout</button>
         </div>
         <Orders />
       </div>
@@ -220,8 +197,8 @@ function App() {
       <div>
         <div style={{ padding: '1rem 2rem', background: '#FFF8F0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #E8DDD2' }}>
           <button onClick={() => setShowSalary(false)} className="btn btn-primary">← Back to Menu</button>
-          <h2 style={{ color: '#E53935' }}>💰 Mushaar</h2>
-          <button onClick={handleLogout} className="btn btn-danger" style={{ background: '#E53935', padding: '0.4rem 1rem' }}>Logout</button>
+          <h2 style={{ color: '#E53935' }}>💰 Mushaarka</h2>
+          <button onClick={logout} className="btn btn-danger" style={{ background: '#E53935', padding: '0.4rem 1rem' }}>Logout</button>
         </div>
         <Salary />
       </div>
@@ -234,7 +211,7 @@ function App() {
         <div style={{ padding: '1rem 2rem', background: '#FFF8F0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #E8DDD2' }}>
           <button onClick={() => setShowExpenses(false)} className="btn btn-primary">← Back to Menu</button>
           <h2 style={{ color: '#E53935' }}>💰 Kharashaadka</h2>
-          <button onClick={handleLogout} className="btn btn-danger" style={{ background: '#E53935', padding: '0.4rem 1rem' }}>Logout</button>
+          <button onClick={logout} className="btn btn-danger" style={{ background: '#E53935', padding: '0.4rem 1rem' }}>Logout</button>
         </div>
         <Expenses />
       </div>
@@ -281,7 +258,7 @@ function App() {
             <button onClick={() => setShowSalary(true)} className="btn btn-primary" style={{ background: '#4CAF50' }}>💰 Salary</button>
             <button onClick={() => setShowExpenses(true)} className="btn btn-primary" style={{ background: '#E07C3C' }}>💳 Expenses</button>
             <button onClick={() => setShowChangePassword(true)} className="btn" style={{ background: '#607D8B', color: 'white' }}>🔑 Change Password</button>
-            <button onClick={handleLogout} className="btn btn-danger" style={{ background: '#E53935', padding: '0.4rem 1rem' }}>Logout</button>
+            <button onClick={logout} className="btn btn-danger" style={{ background: '#E53935', padding: '0.4rem 1rem' }}>Logout</button>
           </div>
         </div>
 
