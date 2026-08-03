@@ -7,7 +7,7 @@ import Login from './Login';
 import Register from './Register';
 import { getFoodImage } from './foodImages';
 import './App.css';
-const API_BASE_URL = 'https://restu-production.up.railway.app';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://restu-production.up.railway.app';
 
 
 function App() {

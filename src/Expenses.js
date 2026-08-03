@@ -4,7 +4,7 @@ import { exportPDF } from './PDFExport';
 import { exportToExcel } from './ExcelExport';
 import './Expenses.css';
 
-const API_BASE_URL = 'http://localhost:5000';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://restu-production.up.railway.app';
 
 // Create axios instance with default config
 const api = axios.create({
