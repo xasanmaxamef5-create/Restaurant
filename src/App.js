@@ -158,7 +158,12 @@ function App() {
 
     const orderData = {
       items: cart,
-      total: totalPrice
+      total: totalPrice,
+      customer: {
+        name: currentUser.name,
+        phone: currentUser.phone || ''
+      },
+      paymentMethod: "cash"
     };
 
     const token = localStorage.getItem('authToken');

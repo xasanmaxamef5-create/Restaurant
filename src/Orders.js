@@ -37,7 +37,7 @@ function Orders() {
     setLoading(true);
     // Use the token-aware 'api' instance for all calls
     Promise.all([
-      api.get('/api/orders'),
+      api.get('/api/my-orders'),
       api.get('/api/menu')
     ])
       .then(res => {
