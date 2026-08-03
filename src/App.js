@@ -39,6 +39,7 @@ function App() {
   // Fetch menu
   const fetchMenu = () => {
     setLoading(true);
+    console.log("API URL:", API_BASE_URL);
     axios.get(`${API_BASE_URL}/api/menu`)
       .then(response => {
         setMenuItems(response.data);
