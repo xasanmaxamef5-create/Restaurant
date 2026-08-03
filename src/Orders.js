@@ -41,7 +41,13 @@ function Orders() {
       api.get('/api/menu')
     ])
       .then(res => {
-        setOrders(res[0].data);
+        // Ensure that we are setting an array to the orders state
+        const ordersData = res[0].data;
+        if (Array.isArray(ordersData)) {
+          setOrders(ordersData);
+        } else if (ordersData && Array.isArray(ordersData.orders)) {
+          setOrders(ordersData.orders);
+        }
         setMenuItems(res[1].data);
         setLoading(false);
       })

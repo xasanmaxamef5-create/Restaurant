@@ -159,11 +159,9 @@ function App() {
     const orderData = {
       items: cart,
       total: totalPrice,
-      customer: {
-        name: currentUser.name,
-        phone: currentUser.phone || ''
-      },
-      paymentMethod: "cash"
+      customer: { // Ensure customer object is sent as backend expects it
+        name: currentUser.name
+      }
     };
 
     const token = localStorage.getItem('authToken');
