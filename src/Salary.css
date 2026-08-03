@@ -47,6 +47,10 @@
   margin-top: 0.3rem;
 }
 
+.summary-card.advance h3 {
+  color: #E53935;
+}
+
 .add-employee-form {
   background: #f3ece4;
   padding: 1.5rem;
@@ -67,17 +71,17 @@
   margin-bottom: 1rem;
 }
 
-.form-row input {
+.form-row input, .form-row select {
   flex: 1;
   padding: 0.8rem 1rem;
   border: 2px solid #dcc9b6;
   border-radius: 8px;
   font-size: 1rem;
   background: white;
-  min-width: 150px;
+  min-width: 120px;
 }
 
-.form-row input:focus {
+.form-row input:focus, .form-row select:focus {
   outline: none;
   border-color: #b76e3e;
 }
@@ -91,6 +95,7 @@
   font-size: 1rem;
   cursor: pointer;
   transition: background 0.2s;
+  flex: 0.5;
 }
 
 .save-btn:hover {
@@ -130,9 +135,22 @@
   background: #faf6f0;
 }
 
-.total-salary {
+.advance-amount {
+  color: #E53935;
+  font-weight: 600;
+}
+
+.net-salary {
+  color: #2e7d32;
   font-weight: 700;
-  color: #b76e3e;
+}
+
+.status-badge {
+  padding: 0.3rem 0.8rem;
+  border-radius: 20px;
+  color: white;
+  font-size: 0.8rem;
+  font-weight: 500;
 }
 
 .delete-btn {
@@ -165,6 +183,35 @@
   background: #9a5a30;
 }
 
+.pdf-btn {
+  background: #d32f2f;
+  color: white;
+  border: none;
+  padding: 0.5rem 1.2rem;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.pdf-btn:hover {
+  background: #b71c1c;
+}
+
+.excel-btn {
+  background: #2e7d32;
+  color: white;
+  border: none;
+  padding: 0.5rem 1.2rem;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.excel-btn:hover {
+  background: #1b5e20;
+}
 @media (max-width: 700px) {
   .salary-header {
     flex-direction: column;

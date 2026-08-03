@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import './Login.css';
 
-const API_BASE_URL = 'https://restu-production.up.railway.app';
+const API_BASE_URL = 'http://localhost:5000';
 
 function Login({ onLogin, switchToRegister }) {
   const [formData, setFormData] = useState({
@@ -37,11 +37,15 @@ function Login({ onLogin, switchToRegister }) {
 
       if (response.data.success) {
         const user = response.data.user;
+        const token = response.data.token;
+        
         localStorage.setItem('currentUser', JSON.stringify({
           id: user.id,
           name: user.name,
           email: user.email
         }));
+        localStorage.setItem('authToken', token);
+        
         setSuccess('✅ Login successful!');
         setTimeout(() => {
           onLogin(user);

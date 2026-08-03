@@ -1,38 +1,68 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { exportPDF } from './PDFExport';
+import { exportToExcel } from './ExcelExport';
 import './Salary.css';
 
-const API_BASE_URL = 'https://restu-production.up.railway.app';
+const API_BASE_URL = 'http://localhost:5000';
+
+// Create axios instance with default config
+const api = axios.create({
+  baseURL: API_BASE_URL,
+});
+
+// Add interceptor to include token in all requests
+api.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('authToken');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
 
 function Salary() {
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showAddForm, setShowAddForm] = useState(false);
-  const [newEmployee, setNewEmployee] = useState({ name: '', role: '', salary: 0, hours: 0, bonus: 0 });
+  const [newEmployee, setNewEmployee] = useState({ 
+    name: '', 
+    role: '', 
+    salary: 0, 
+    advance: 0 
+  });
+  const [editingEmployee, setEditingEmployee] = useState(null);
 
   useEffect(() => {
     fetchEmployees();
-  }, []);
+  }, []); // This should only run once on component mount
 
   const fetchEmployees = async () => {
     try {
       setLoading(true);
-      const response = await axios.get(`${API_BASE_URL}/api/salary`);
-      setEmployees(response.data);
+      const response = await api.get('/api/salary');
+      // Ensure that we always set an array to the state
+      setEmployees(Array.isArray(response.data) ? response.data : []);
       setError(null);
     } catch (err) {
       console.error('Error fetching employees:', err);
-      setError('Failed to load employees');
+      if (err.response?.status === 401) {
+        setError('Please login to view employees');
+      } else {
+        setError('Failed to load employees');
+      }
     } finally {
       setLoading(false);
     }
   };
 
-  const calculateTotalSalary = (hours, salary, bonus) => {
-    const hourlyRate = salary / 160;
-    return (hours * hourlyRate) + bonus;
+  const calculateNetSalary = (salary, advance) => {
+    return (salary || 0) - (advance || 0);
   };
 
   const addEmployee = async () => {
@@ -42,37 +72,116 @@ function Salary() {
     }
 
     try {
-      const response = await axios.post(`${API_BASE_URL}/api/salary`, newEmployee);
-      setEmployees([...employees, response.data]);
-      setNewEmployee({ name: '', role: '', salary: 0, hours: 0, bonus: 0 });
+      // Use the global api instance which includes the auth token
+      const response = await api.post(
+        '/api/admin/salary', 
+        newEmployee
+      );
+      
+      // Only add the new employee if the API call was successful and returned an employee
+      if (response.data.success && response.data.employee) {
+        setEmployees(prevEmployees => [...prevEmployees, response.data.employee]);
+      }
+
+      setNewEmployee({ name: '', role: '', salary: 0, advance: 0 });
       setShowAddForm(false);
+      alert('Employee added successfully!');
     } catch (err) {
       console.error('Error adding employee:', err);
-      alert('Failed to add employee');
+      
+      if (err.response?.status === 401) {
+        alert('Session expired. Please login again.');
+        // Optional: Redirect to login page
+        // window.location.href = '/login';
+      } else if (err.response?.status === 403) {
+        alert('Permission denied to add employees. Please log in again.');
+      } else {
+        alert('Failed to add employee. Please try again.');
+      }
+    }
+  };
+
+  const handleEdit = (employee) => {
+    setEditingEmployee({ ...employee });
+  };
+
+  const handleCancelEdit = () => {
+    setEditingEmployee(null);
+  };
+
+  const handleUpdate = async () => {
+    if (!editingEmployee) return;
+    try {
+      const { _id, ...updateData } = editingEmployee;
+      const response = await api.put(`/api/admin/salary/${_id}`, updateData);
+      setEmployees(employees.map(emp => (emp._id === _id ? response.data.employee : emp)));
+      setEditingEmployee(null);
+      alert('Employee updated successfully!');
+    } catch (err) {
+      console.error('Error updating employee:', err);
+      if (err.response?.status === 401) {
+        alert('Session expired. Please login again.');
+      } else if (err.response?.status === 404) {
+        alert('Employee not found. It may have been deleted by another user.');
+        fetchEmployees(); // Refresh list
+      } else {
+        alert('Failed to update employee.');
+      }
     }
   };
 
   const deleteEmployee = async (id) => {
     if (!window.confirm('Are you sure you want to delete this employee?')) return;
+    
     try {
-      await axios.delete(`${API_BASE_URL}/api/salary/${id}`);
-      setEmployees(employees.filter(emp => emp.id !== id));
+      // Use the global api instance which includes the auth token
+      await api.delete(
+        `/api/admin/salary/${id}`
+      );
+      
+      setEmployees(prevEmployees => prevEmployees.filter(emp => (emp._id || emp.id) !== id));
+      alert('Employee deleted successfully!');
     } catch (err) {
       console.error('Error deleting employee:', err);
-      alert('Failed to delete employee');
+      
+      if (err.response?.status === 401) {
+        alert('Session expired. Please login again.');
+      } else {
+        alert('Failed to delete employee');
+      }
     }
   };
 
-  const totalPayroll = employees.reduce((sum, emp) => {
-    return sum + calculateTotalSalary(emp.hours, emp.salary, emp.bonus);
-  }, 0);
-
   const handleExportPDF = () => {
-    exportPDF('salary-content', `Salary_${new Date().toISOString().split('T')[0]}`);
+    exportPDF('salary-content', 'Salary_' + new Date().toISOString().split('T')[0]);
+  };
+
+  const handleExportExcel = () => {
+    const dataToExport = employees.map(emp => ({
+      'Name': emp.name,
+      'Role': emp.role,
+      'Monthly Salary': emp.salary || 0,
+      'Advance (Hormaris)': emp.advance || 0,
+      'Net Salary': calculateNetSalary(emp.salary, emp.advance)
+    }));
+    exportToExcel(dataToExport, 'Salary_' + new Date().toISOString().split('T')[0]);
   };
 
   if (loading) return <div className="loading">Loading employees...</div>;
-  if (error) return <div className="error">{error}</div>;
+  
+  if (error) {
+    return (
+      <div className="error-container">
+        <div className="error">{error}</div>
+        {error.includes('login') && (
+          <button onClick={() => window.location.href = '/login'} className="login-btn">
+            Go to Login
+          </button>
+        )}
+        <button onClick={fetchEmployees} className="retry-btn">Retry</button>
+      </div>
+    );
+  }
 
   return (
     <div className="salary-container">
@@ -81,6 +190,7 @@ function Salary() {
           <h2>💰 Mushaar Shaqaalaha</h2>
           <div style={{ display: 'flex', gap: '0.8rem' }}>
             <button onClick={handleExportPDF} className="pdf-btn">📄 Export PDF</button>
+            <button onClick={handleExportExcel} className="excel-btn">📊 Export Excel</button>
             <button className="add-btn" onClick={() => setShowAddForm(!showAddForm)}>
               {showAddForm ? '✖ Cancel' : '➕ Add Employee'}
             </button>
@@ -94,7 +204,7 @@ function Salary() {
           </div>
           <div className="summary-card">
             <span>Total Payroll</span>
-            <h3>${totalPayroll.toFixed(2)}</h3>
+            <h3>${employees.reduce((sum, emp) => sum + (emp.salary || 0), 0).toFixed(2)}</h3>
           </div>
         </div>
 
@@ -102,13 +212,32 @@ function Salary() {
           <div className="add-employee-form">
             <h3>Add New Employee</h3>
             <div className="form-row">
-              <input type="text" placeholder="Full Name" value={newEmployee.name} onChange={(e) => setNewEmployee({ ...newEmployee, name: e.target.value })} />
-              <input type="text" placeholder="Role" value={newEmployee.role} onChange={(e) => setNewEmployee({ ...newEmployee, role: e.target.value })} />
+              <input 
+                type="text" 
+                placeholder="Full Name" 
+                value={newEmployee.name} 
+                onChange={(e) => setNewEmployee({ ...newEmployee, name: e.target.value })} 
+              />
+              <input 
+                type="text" 
+                placeholder="Role" 
+                value={newEmployee.role} 
+                onChange={(e) => setNewEmployee({ ...newEmployee, role: e.target.value })} 
+              />
             </div>
             <div className="form-row">
-              <input type="number" placeholder="Monthly Salary" value={newEmployee.salary || ''} onChange={(e) => setNewEmployee({ ...newEmployee, salary: Number(e.target.value) })} />
-              <input type="number" placeholder="Hours Worked" value={newEmployee.hours || ''} onChange={(e) => setNewEmployee({ ...newEmployee, hours: Number(e.target.value) })} />
-              <input type="number" placeholder="Bonus" value={newEmployee.bonus || ''} onChange={(e) => setNewEmployee({ ...newEmployee, bonus: Number(e.target.value) })} />
+              <input 
+                type="number" 
+                placeholder="Monthly Salary" 
+                value={newEmployee.salary || ''} 
+                onChange={(e) => setNewEmployee({ ...newEmployee, salary: Number(e.target.value) })} 
+              />
+              <input 
+                type="number"
+                placeholder="Advance (Lacag Hormaris)"
+                value={newEmployee.advance || ''}
+                onChange={(e) => setNewEmployee({ ...newEmployee, advance: Number(e.target.value) })}
+              />
             </div>
             <button className="save-btn" onClick={addEmployee}>💾 Save Employee</button>
           </div>
@@ -122,27 +251,56 @@ function Salary() {
                 <th>Name</th>
                 <th>Role</th>
                 <th>Monthly Salary</th>
-                <th>Hours</th>
-                <th>Bonus</th>
-                <th>Total Salary</th>
+                <th>Advance (Hormaris)</th>
+                <th>Net Salary</th>
                 <th>Action</th>
               </tr>
             </thead>
             <tbody>
               {employees.map((emp, index) => {
-                const total = calculateTotalSalary(emp.hours, emp.salary, emp.bonus);
-                return (
-                  <tr key={emp.id}>
-                    <td>{index + 1}</td>
-                    <td><strong>{emp.name}</strong></td>
-                    <td>{emp.role}</td>
-                    <td>${emp.salary.toFixed(2)}</td>
-                    <td>{emp.hours}h</td>
-                    <td>${emp.bonus.toFixed(2)}</td>
-                    <td><span className="total-salary">${total.toFixed(2)}</span></td>
-                    <td><button className="delete-btn" onClick={() => deleteEmployee(emp.id)}>🗑️</button></td>
-                  </tr>
-                );
+                const isEditing = editingEmployee?._id === emp._id;
+                if (isEditing) {
+                  return (
+                    <tr key={emp._id} className="editing-row">
+                      <td>{index + 1}</td>
+                      <td><input type="text" value={editingEmployee.name} onChange={(e) => setEditingEmployee({...editingEmployee, name: e.target.value})} /></td>
+                      <td><input type="text" value={editingEmployee.role} onChange={(e) => setEditingEmployee({...editingEmployee, role: e.target.value})} /></td>
+                      <td><input type="number" value={editingEmployee.salary} onChange={(e) => setEditingEmployee({...editingEmployee, salary: Number(e.target.value)})} /></td>
+                      <td><input type="number" value={editingEmployee.advance} onChange={(e) => setEditingEmployee({...editingEmployee, advance: Number(e.target.value)})} /></td>
+                      <td><span className="total-salary">${calculateNetSalary(editingEmployee.salary, editingEmployee.advance).toFixed(2)}</span></td>
+                      <td className="action-buttons">
+                        <button className="save-btn" onClick={handleUpdate}>💾</button>
+                        <button className="cancel-btn" onClick={handleCancelEdit}>✖️</button>
+                      </td>
+                    </tr>
+                  );
+                } else {
+                  const netSalary = calculateNetSalary(emp.salary, emp.advance);
+                  return (
+                    <tr key={emp._id || emp.id || index}>
+                      <td>{index + 1}</td>
+                      <td><strong>{emp.name}</strong></td>
+                      <td>{emp.role}</td>
+                      <td>${(emp.salary || 0).toFixed(2)}</td>
+                      <td>${(emp.advance || 0).toFixed(2)}</td>
+                      <td><span className="total-salary">${netSalary.toFixed(2)}</span></td>
+                      <td className="action-buttons">
+                        <button 
+                          className="edit-btn"
+                          onClick={() => handleEdit(emp)}
+                        >
+                          ✏️
+                        </button>
+                        <button 
+                          className="delete-btn" 
+                          onClick={() => deleteEmployee(emp._id || emp.id)}
+                        >
+                          🗑️
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                }
               })}
             </tbody>
           </table>

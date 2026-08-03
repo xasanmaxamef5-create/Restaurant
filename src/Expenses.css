@@ -226,6 +226,35 @@
   background: #9a5a30;
 }
 
+.pdf-btn {
+  background: #d32f2f;
+  color: white;
+  border: none;
+  padding: 0.5rem 1.2rem;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.pdf-btn:hover {
+  background: #b71c1c;
+}
+
+.excel-btn {
+  background: #2e7d32;
+  color: white;
+  border: none;
+  padding: 0.5rem 1.2rem;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.excel-btn:hover {
+  background: #1b5e20;
+}
 @media (max-width: 700px) {
   .expenses-header {
     flex-direction: column;

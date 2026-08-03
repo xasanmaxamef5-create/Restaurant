@@ -1,6 +1,8 @@
 // Food Images for Friends Fast Food Menu
+import bariis from './Images/bariis.png';
+
 export const foodImages = {
-  'Bariis': 'https://images.unsplash.com/photo-1586201375761-83865001e8ac?w=300&h=300&fit=crop',
+  'Bariis': bariis,
   'Baris saldato': 'https://images.unsplash.com/photo-1512058564366-18510be2db19?w=300&h=300&fit=crop',
   'Baasto': 'https://images.unsplash.com/photo-1551892374-ecf8754cf8b0?w=300&h=300&fit=crop',
   'Baasto saldato': 'https://images.unsplash.com/photo-1645112411342-4665a10c6a3a?w=300&h=300&fit=crop',

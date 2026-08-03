@@ -7,7 +7,7 @@ import Login from './Login';
 import Register from './Register';
 import { getFoodImage } from './foodImages';
 import './App.css';
-const API_BASE_URL = 'https://restu-production.up.railway.app';
+const API_BASE_URL = 'http://localhost:5000';
 
 
 function App() {
@@ -24,6 +24,13 @@ function App() {
     price: '',
     image: 'https://images.unsplash.com/photo-1586201375761-83865001e8ac?w=300&h=300&fit=crop'
   });
+  const [showChangePassword, setShowChangePassword] = useState(false);
+  const [passwordData, setPasswordData] = useState({
+    oldPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  });
+  const [passwordMessage, setPasswordMessage] = useState({ type: '', text: '' });
   
   // Auth state
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -66,6 +73,7 @@ function App() {
 
   const handleLogout = () => {
     localStorage.removeItem('currentUser');
+    localStorage.removeItem('authToken');
     setIsAuthenticated(false);
     setCurrentUser(null);
   };
@@ -106,6 +114,51 @@ function App() {
     alert(`✅ "${newItem.name}" added to menu!`);
   };
 
+  // Change password
+  const handleChangePassword = async () => {
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      setPasswordMessage({ type: 'error', text: 'New passwords do not match!' });
+      return;
+    }
+    if (passwordData.newPassword.length < 6) {
+      setPasswordMessage({ type: 'error', text: 'New password must be at least 6 characters.' });
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('authToken');
+      const response = await axios.post(
+        `${API_BASE_URL}/api/users/change-password`,
+        {
+          oldPassword: passwordData.oldPassword,
+          newPassword: passwordData.newPassword,
+        },
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      if (response.data.success) {
+        setPasswordMessage({ type: 'success', text: '✅ Password changed successfully!' });
+        setPasswordData({ oldPassword: '', newPassword: '', confirmPassword: '' });
+        setTimeout(() => {
+          setShowChangePassword(false);
+          setPasswordMessage({ type: '', text: '' });
+        }, 2000);
+      } else {
+        setPasswordMessage({ type: 'error', text: response.data.message || 'Failed to change password.' });
+      }
+    } catch (error) {
+      const errorMessage = error.response?.data?.message || 'An error occurred. Please try again.';
+      setPasswordMessage({ type: 'error', text: `❌ ${errorMessage}` });
+    }
+  };
+
+  const handlePasswordFormChange = (e) => {
+    setPasswordData({ ...passwordData, [e.target.name]: e.target.value });
+    setPasswordMessage({ type: '', text: '' });
+  };
+
   // Cart functions
   const addToCart = (item) => {
     setCart([...cart, item]);
@@ -130,10 +183,17 @@ function App() {
       total: totalPrice
     };
 
-    axios.post(`${API_BASE_URL}/api/orders`, orderData)
+    const token = localStorage.getItem('authToken');
+    axios.post(`${API_BASE_URL}/api/orders`, orderData, {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    })
       .then(response => {
-        alert(`✅ Order #${response.data.id} placed! Total: $${response.data.total.toFixed(2)}`);
+        alert(`✅ Order placed! Total: $${response.data.total.toFixed(2)}`);
         setCart([]);
+        // Automatically navigate to the orders page to see the new order
+        setShowOrders(true);
       })
       .catch(error => {
         console.error('Error placing order:', error);
@@ -220,16 +280,51 @@ function App() {
             <button onClick={() => setShowOrders(true)} className="btn btn-orange">📋 Orders</button>
             <button onClick={() => setShowSalary(true)} className="btn btn-primary" style={{ background: '#4CAF50' }}>💰 Salary</button>
             <button onClick={() => setShowExpenses(true)} className="btn btn-primary" style={{ background: '#E07C3C' }}>💳 Expenses</button>
+            <button onClick={() => setShowChangePassword(true)} className="btn" style={{ background: '#607D8B', color: 'white' }}>🔑 Change Password</button>
             <button onClick={handleLogout} className="btn btn-danger" style={{ background: '#E53935', padding: '0.4rem 1rem' }}>Logout</button>
           </div>
         </div>
 
-        <div style={{ width: '100%', maxWidth: '1200px', marginBottom: '1rem', display: 'flex', justifyContent: 'flex-end' }}>
-          <button onClick={() => setShowAddItem(!showAddItem)} className="btn btn-primary" style={{ background: '#E53935' }}>
-            {showAddItem ? '✖ Cancel' : '➕ Add New Item'}
-          </button>
-        </div>
-
+        {showChangePassword && (
+          <div className="add-item-form">
+            <h3>🔑 Change Your Password</h3>
+            {passwordMessage.text && (
+              <div className={`auth-${passwordMessage.type === 'error' ? 'error' : 'success'}`} style={{ marginBottom: '1rem' }}>
+                {passwordMessage.text}
+              </div>
+            )}
+            <div className="form-row">
+              <input
+                type="password"
+                name="oldPassword"
+                placeholder="Current Password"
+                value={passwordData.oldPassword}
+                onChange={handlePasswordFormChange}
+              />
+            </div>
+            <div className="form-row">
+              <input
+                type="password"
+                name="newPassword"
+                placeholder="New Password (min 6 chars)"
+                value={passwordData.newPassword}
+                onChange={handlePasswordFormChange}
+              />
+              <input
+                type="password"
+                name="confirmPassword"
+                placeholder="Confirm New Password"
+                value={passwordData.confirmPassword}
+                onChange={handlePasswordFormChange}
+              />
+            </div>
+            <div className="form-row" style={{ justifyContent: 'flex-end' }}>
+              <button onClick={() => setShowChangePassword(false)} className="btn btn-danger">Cancel</button>
+              <button onClick={handleChangePassword} className="save-btn">💾 Update Password</button>
+            </div>
+          </div>
+        )}
+        
         {showAddItem && (
           <div className="add-item-form">
             <h3>📝 Add New Menu Item</h3>
@@ -244,6 +339,12 @@ function App() {
           </div>
         )}
 
+        <div style={{ width: '100%', maxWidth: '1200px', marginBottom: '1rem', display: 'flex', justifyContent: 'flex-end' }}>
+          <button onClick={() => setShowAddItem(!showAddItem)} className="btn btn-primary" style={{ background: '#E53935' }}>
+            {showAddItem ? '✖ Cancel' : '➕ Add New Item'}
+          </button>
+        </div>
+
         <div className="menu-section">
           <div className="section-title">
             📋 Menu
@@ -252,7 +353,7 @@ function App() {
 
           <div className="menu-grid">
             {menuItems.map((item) => (
-              <div key={item.id} className="menu-card">
+              <div key={item._id || item.id} className="menu-card">
                 <div className="card-image">
                   <img src={getFoodImage(item.name)} alt={item.name} loading="lazy" />
                 </div>
@@ -280,7 +381,7 @@ function App() {
           ) : (
             <>
               {cart.map((item, index) => (
-                <div key={index} className="cart-item">
+                <div key={`cart-${index}-${item._id || item.id}`} className="cart-item">
                   <div className="cart-item-info">
                     <img src={getFoodImage(item.name)} alt={item.name} className="cart-item-image" />
                     <span className="item-name">{item.name}</span>

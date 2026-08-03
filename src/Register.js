@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import './Register.css';
 
-const API_BASE_URL = 'https://restu-production.up.railway.app';
+const API_BASE_URL = 'http://localhost:5000';
 
 function Register({ onRegister, switchToLogin }) {
   const [formData, setFormData] = useState({
@@ -59,7 +59,8 @@ function Register({ onRegister, switchToLogin }) {
       }
     } catch (error) {
       console.error('Registration error:', error);
-      setError('Registration failed. Please try again.');
+      // Display the specific error message from the server if it exists
+      setError(error.response?.data?.message || 'Registration failed. Please try again.');
     } finally {
       setLoading(false);
     }

@@ -1,9 +1,27 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { exportPDF } from './PDFExport';
+import { exportToExcel } from './ExcelExport';
 import './Expenses.css';
 
-const API_BASE_URL = 'https://restu-production.up.railway.app';
+const API_BASE_URL = 'http://localhost:5000';
+
+// Create axios instance with default config
+const api = axios.create({
+  baseURL: API_BASE_URL,
+});
+
+// Add interceptor to include token in all requests
+api.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('authToken');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
 
 function Expenses() {
   const [expenses, setExpenses] = useState([]);
@@ -29,12 +47,16 @@ function Expenses() {
   const fetchExpenses = async () => {
     try {
       setLoading(true);
-      const response = await axios.get(`${API_BASE_URL}/api/expenses`);
-      setExpenses(response.data);
+      const response = await api.get('/api/admin/expenses'); // Use admin route to ensure token is used
+      setExpenses(response.data.expenses || []);
       setError(null);
     } catch (err) {
       console.error('Error fetching expenses:', err);
-      setError('Failed to load expenses');
+      if (err.response?.status === 401) {
+        setError('Please login to view expenses');
+      } else {
+        setError('Failed to load expenses');
+      }
     } finally {
       setLoading(false);
     }
@@ -47,21 +69,26 @@ function Expenses() {
     }
 
     try {
-      const response = await axios.post(`${API_BASE_URL}/api/expenses`, newExpense);
-      setExpenses([...expenses, response.data]);
+      const response = await api.post('/api/admin/expenses', newExpense);
+      setExpenses([...expenses, response.data.expense]);
       setNewExpense({ name: '', category: 'Food', amount: 0, date: new Date().toISOString().split('T')[0], type: 'cash' });
       setShowAddForm(false);
+      alert('Expense added successfully!');
     } catch (err) {
       console.error('Error adding expense:', err);
-      alert('Failed to add expense');
+      if (err.response?.status === 401 || err.response?.status === 403) {
+        alert('Permission denied. Please log in again.');
+      } else {
+        alert('Failed to add expense. Please try again.');
+      }
     }
   };
 
   const deleteExpense = async (id) => {
     if (!window.confirm('Are you sure you want to delete this expense?')) return;
     try {
-      await axios.delete(`${API_BASE_URL}/api/expenses/${id}`);
-      setExpenses(expenses.filter(exp => exp.id !== id));
+      await api.delete(`/api/admin/expenses/${id}`);
+      setExpenses(expenses.filter(exp => (exp._id || exp.id) !== id));
     } catch (err) {
       console.error('Error deleting expense:', err);
       alert('Failed to delete expense');
@@ -82,8 +109,30 @@ function Expenses() {
     exportPDF('expenses-content', `Expenses_${new Date().toISOString().split('T')[0]}`);
   };
 
+  const handleExportExcel = () => {
+    const dataToExport = filteredExpenses.map(exp => ({
+      'Name': exp.name,
+      'Category': exp.category,
+      'Amount': exp.amount,
+      'Date': new Date(exp.date).toLocaleDateString(),
+      'Type': exp.type
+    }));
+    exportToExcel(dataToExport, `Expenses_${new Date().toISOString().split('T')[0]}`);
+  };
+
   if (loading) return <div className="loading">Loading expenses...</div>;
-  if (error) return <div className="error">{error}</div>;
+  if (error) {
+    return (
+      <div className="error-container">
+        <div className="error">{error}</div>
+        {error.includes('login') && (
+          <button onClick={() => window.location.href = '/login'} className="login-btn">
+            Go to Login
+          </button>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="expenses-container">
@@ -92,6 +141,7 @@ function Expenses() {
           <h2>💰 Kharashaadka Maqaayada</h2>
           <div style={{ display: 'flex', gap: '0.8rem' }}>
             <button onClick={handleExportPDF} className="pdf-btn">📄 Export PDF</button>
+            <button onClick={handleExportExcel} className="excel-btn">📊 Export Excel</button>
             <button className="add-btn" onClick={() => setShowAddForm(!showAddForm)}>
               {showAddForm ? '✖ Cancel' : '➕ Add Expense'}
             </button>
@@ -174,7 +224,7 @@ function Expenses() {
                 </tr>
               ) : (
                 filteredExpenses.map((exp, index) => (
-                  <tr key={exp.id}>
+                  <tr key={exp._id || exp.id}>
                     <td>{index + 1}</td>
                     <td><strong>{exp.name}</strong></td>
                     <td><span className="category-badge">{exp.category}</span></td>
@@ -186,7 +236,7 @@ function Expenses() {
                       </span>
                     </td>
                     <td>
-                      <button className="delete-btn" onClick={() => deleteExpense(exp.id)}>🗑️</button>
+                      <button className="delete-btn" onClick={() => deleteExpense(exp._id || exp.id)}>🗑️</button>
                     </td>
                   </tr>
                 ))
