@@ -1,4 +1,3 @@
-// Restaurant/src/apiConfig.js
-const API_BASE_URL = 'https://restaurant-production-9e0a.up.railway.app';
+const API_BASE_URL = 'https://restu-production.up.railway.app';
 
 export default API_BASE_URL;
