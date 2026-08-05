@@ -1,26 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
 import { exportPDF } from './PDFExport';
 import { exportToExcel } from './ExcelExport';
-import API_BASE_URL from './apiConfig';
+import api from './api'; // Import the centralized api instance
 import './Expenses.css';
-
-// Create axios instance with default config
-const api = axios.create({
-  baseURL: API_BASE_URL,
-});
-
-// Add interceptor to include token in all requests
-api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('authToken');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => Promise.reject(error)
-);
 
 function Expenses() {
   const [expenses, setExpenses] = useState([]);
@@ -44,21 +26,17 @@ function Expenses() {
   }, []);
 
   const fetchExpenses = async () => {
-    try {
-      setLoading(true);
-      const response = await api.get('/api/admin/expenses'); // Use admin route to ensure token is used
-      setExpenses(response.data.expenses || []);
-      setError(null);
-    } catch (err) {
+    setLoading(true);
+    setError(null);
+    api.get('/api/admin/expenses') // Use admin route to ensure token is used
+      .then(response => {
+        setExpenses(response.data.expenses || []);
+      })
+      .catch(err => {
       console.error('Error fetching expenses:', err);
-      if (err.response?.status === 401) {
-        setError('Please login to view expenses');
-      } else {
-        setError('Failed to load expenses');
-      }
-    } finally {
-      setLoading(false);
-    }
+        setError('Failed to load expenses. Please try again.');
+      })
+      .finally(() => setLoading(false));
   };
 
   const addExpense = async () => {

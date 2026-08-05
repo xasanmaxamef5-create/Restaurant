@@ -1,25 +1,8 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import axios from 'axios';
 import { exportPDF } from './PDFExport';
 import { exportToExcel } from './ExcelExport';
-import API_BASE_URL from './apiConfig';
+import api from './api'; // Import the centralized api instance
 import './Orders.css';
-
-// Create an axios instance with a request interceptor to add the auth token
-const api = axios.create({
-  baseURL: API_BASE_URL,
-});
-
-api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('authToken');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => Promise.reject(error)
-);
 
 function Orders() {
   const [orders, setOrders] = useState([]);
@@ -34,28 +17,23 @@ function Orders() {
   const [todayStats, setTodayStats] = useState({ totalOrders: 0, totalMoney: 0, itemSummary: {} });
 
   const fetchOrders = useCallback(() => {
-    setLoading(true);
-    // Use the token-aware 'api' instance for all calls
-    Promise.all([
-      api.get('/api/my-orders'),
-      api.get('/api/menu')
-    ])
-      .then(res => {
-        // Ensure that we are setting an array to the orders state
-        const ordersData = res[0].data;
-        if (Array.isArray(ordersData)) {
-          setOrders(ordersData);
-        } else if (ordersData && Array.isArray(ordersData.orders)) {
-          setOrders(ordersData.orders);
-        }
-        setMenuItems(res[1].data);
-        setLoading(false);
-      })
-      .catch(err => {
-        console.error('Error fetching orders:', err);
-        setError('Failed to load orders');
-        setLoading(false);
-      });
+  setLoading(true);
+  setError(null);
+  // Use the token-aware 'api' instance for all calls
+  Promise.all([
+    api.get('/api/my-orders'),
+    api.get('/api/menu')
+  ])
+    .then(([ordersRes, menuRes]) => {
+      const ordersData = ordersRes.data.orders || [];
+      setOrders(ordersData);
+      setMenuItems(menuRes.data);
+    })
+    .catch(err => {
+      console.error('Error fetching orders:', err);
+      setError('Failed to load orders. Please try again.');
+    })
+    .finally(() => setLoading(false));
   }, []);
 
   useEffect(() => {

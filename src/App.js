@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
 import Orders from './Orders';
 import Salary from './Salary';
 import Expenses from './Expenses';
 import Login from './Login';
 import Register from './Register';
 import { getFoodImage } from './foodImages';
-import API_BASE_URL from './apiConfig';
+import API_BASE_URL from './apiConfig'; // Keep for direct axios calls if needed, or remove if all go through 'api'
+import api from './api'; // Import the new centralized api instance
 import { useAuth } from './AuthContext';
 import './App.css';
 
@@ -40,7 +40,7 @@ function App() {
   const fetchMenu = () => {
     setLoading(true);
     console.log("API URL:", API_BASE_URL);
-    axios.get(`${API_BASE_URL}/api/menu`)
+    api.get('/api/menu') // Use the centralized api instance
       .then(response => {
         setMenuItems(response.data);
         setLoading(false);
@@ -104,16 +104,12 @@ function App() {
     }
 
     try {
-      const token = localStorage.getItem('authToken');
-      const response = await axios.post(
-        `${API_BASE_URL}/api/users/change-password`,
+      const response = await api.post( // Use the centralized api instance
+        '/api/users/change-password',
         {
           oldPassword: passwordData.oldPassword,
           newPassword: passwordData.newPassword,
         },
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
       );
 
       if (response.data.success) {
@@ -164,15 +160,9 @@ function App() {
       }
     };
 
-    const token = localStorage.getItem('authToken');
-    console.log("TOKEN:", token); // Added for debugging as requested
-    axios.post(`${API_BASE_URL}/api/orders`, orderData, {
-      headers: {
-        Authorization: `Bearer ${token}`
-      }
-    })
+    api.post('/api/orders', orderData) // Use the centralized api instance, token handled by interceptor
       .then(response => {
-        alert(`✅ Order placed! Total: $${response.data.order.total.toFixed(2)}`);
+        alert(`✅ Order placed! Total: $${response.data.data.total.toFixed(2)}`);
         setCart([]);
         // Automatically navigate to the orders page to see the new order
         setShowOrders(true);
