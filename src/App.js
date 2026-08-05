@@ -165,6 +165,7 @@ function App() {
     };
 
     const token = localStorage.getItem('authToken');
+    console.log("TOKEN:", token); // Added for debugging as requested
     axios.post(`${API_BASE_URL}/api/orders`, orderData, {
       headers: {
         Authorization: `Bearer ${token}`
