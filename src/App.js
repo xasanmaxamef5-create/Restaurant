@@ -172,7 +172,7 @@ function App() {
       }
     })
       .then(response => {
-        alert(`✅ Order placed! Total: $${response.data.total.toFixed(2)}`);
+        alert(`✅ Order placed! Total: $${response.data.order.total.toFixed(2)}`);
         setCart([]);
         // Automatically navigate to the orders page to see the new order
         setShowOrders(true);
