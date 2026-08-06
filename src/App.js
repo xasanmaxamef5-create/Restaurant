@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 import Orders from './Orders';
 import Salary from './Salary';
 import Expenses from './Expenses';
 import Login from './Login';
 import Register from './Register';
 import { getFoodImage } from './foodImages';
-import API_BASE_URL from './apiConfig'; // Keep for direct axios calls if needed, or remove if all go through 'api'
-import api from './api'; // Import the new centralized api instance
+import API_BASE_URL from './apiConfig';
 import { useAuth } from './AuthContext';
 import './App.css';
 
@@ -22,10 +22,11 @@ function App() {
   const [showAddItem, setShowAddItem] = useState(false);
   const [newItem, setNewItem] = useState({
     name: '',
-    price: '',
-    image: 'https://images.unsplash.com/photo-1586201375761-83865001e8ac?w=300&h=300&fit=crop'
+    price: ''
   });
+  const [imageFile, setImageFile] = useState(null);
   const [showChangePassword, setShowChangePassword] = useState(false);
+  const [imagePreview, setImagePreview] = useState('https://images.unsplash.com/photo-1586201375761-83865001e8ac?w=300&h=300&fit=crop');
   const [passwordData, setPasswordData] = useState({
     oldPassword: '',
     newPassword: '',
@@ -40,7 +41,7 @@ function App() {
   const fetchMenu = () => {
     setLoading(true);
     console.log("API URL:", API_BASE_URL);
-    api.get('/api/menu') // Use the centralized api instance
+    axios.get(`${API_BASE_URL}/api/menu`)
       .then(response => {
         setMenuItems(response.data);
         setLoading(false);
@@ -82,12 +83,17 @@ function App() {
     const newMenuItem = {
       id: menuItems.length > 0 ? Math.max(...menuItems.map(i => i.id)) + 1 : 1,
       name: newItem.name,
-      price: parseFloat(newItem.price),
-      image: newItem.image || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=300&h=300&fit=crop'
+      price: parseFloat(newItem.price)
     };
 
+    if (imageFile) {
+      newMenuItem.image = URL.createObjectURL(imageFile);
+    }
+
     setMenuItems([...menuItems, newMenuItem]);
-    setNewItem({ name: '', price: '', image: 'https://images.unsplash.com/photo-1586201375761-83865001e8ac?w=300&h=300&fit=crop' });
+    setNewItem({ name: '', price: '' });
+    setImageFile(null);
+    setImagePreview('https://images.unsplash.com/photo-1586201375761-83865001e8ac?w=300&h=300&fit=crop');
     setShowAddItem(false);
     alert(`✅ "${newItem.name}" added to menu!`);
   };
@@ -104,12 +110,16 @@ function App() {
     }
 
     try {
-      const response = await api.post( // Use the centralized api instance
-        '/api/users/change-password',
+      const token = localStorage.getItem('authToken');
+      const response = await axios.post(
+        `${API_BASE_URL}/api/users/change-password`,
         {
           oldPassword: passwordData.oldPassword,
           newPassword: passwordData.newPassword,
         },
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
       );
 
       if (response.data.success) {
@@ -160,9 +170,14 @@ function App() {
       }
     };
 
-    api.post('/api/orders', orderData) // Use the centralized api instance, token handled by interceptor
+    const token = localStorage.getItem('authToken');
+    axios.post(`${API_BASE_URL}/api/orders`, orderData, {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    })
       .then(response => {
-        alert(`✅ Order placed! Total: $${response.data.data.total.toFixed(2)}`);
+        alert(`✅ Order placed! Total: $${response.data.total.toFixed(2)}`);
         setCart([]);
         // Automatically navigate to the orders page to see the new order
         setShowOrders(true);
@@ -305,8 +320,19 @@ function App() {
               <input type="number" placeholder="Price ($)" value={newItem.price} onChange={(e) => setNewItem({ ...newItem, price: e.target.value })} step="0.01" />
             </div>
             <div className="form-row">
-              <input type="text" placeholder="Image URL (optional)" value={newItem.image} onChange={(e) => setNewItem({ ...newItem, image: e.target.value })} />
-              <button onClick={addNewItem} className="save-btn">💾 Add to Menu</button>
+              <input 
+                type="file" 
+                accept="image/*"
+                onChange={(e) => {
+                  const file = e.target.files[0];
+                  if (file) {
+                    setImageFile(file);
+                    setImagePreview(URL.createObjectURL(file));
+                  }
+                }}
+              />
+              {imagePreview && <img src={imagePreview} alt="Preview" style={{ width: '50px', height: '50px', borderRadius: '8px', objectFit: 'cover' }} />}
+              <button onClick={addNewItem} className="save-btn" style={{ marginLeft: 'auto' }}>💾 Add to Menu</button>
             </div>
           </div>
         )}
