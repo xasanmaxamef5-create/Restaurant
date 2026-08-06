@@ -26,17 +26,21 @@ function Expenses() {
   }, []);
 
   const fetchExpenses = async () => {
-    setLoading(true);
-    setError(null);
-    api.get('/api/admin/expenses') // Use admin route to ensure token is used
-      .then(response => {
-        setExpenses(response.data.expenses || []);
-      })
-      .catch(err => {
+    try {
+      setLoading(true);
+      const response = await api.get('/api/admin/expenses'); // Use admin route to ensure token is used
+      setExpenses(response.data.expenses || []);
+      setError(null);
+    } catch (err) {
       console.error('Error fetching expenses:', err);
-        setError('Failed to load expenses. Please try again.');
-      })
-      .finally(() => setLoading(false));
+      if (err.response?.status === 401) {
+        setError('Please login to view expenses');
+      } else {
+        setError('Failed to load expenses');
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
   const addExpense = async () => {

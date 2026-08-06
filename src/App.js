@@ -22,7 +22,7 @@ function App() {
   const [showAddItem, setShowAddItem] = useState(false);
   const [newItem, setNewItem] = useState({
     name: '',
-    price: ''
+    price: '',
   });
   const [imageFile, setImageFile] = useState(null);
   const [editingItem, setEditingItem] = useState(null); // New state for editing
@@ -41,7 +41,7 @@ function App() {
   // Fetch menu
   const fetchMenu = () => {
     setLoading(true);
-    console.log("API URL:", API_BASE_URL);
+    // console.log("API URL:", API_BASE_URL); // Removed as API_BASE_URL is configured in api.js
     api.get('/api/menu') // Use the centralized api instance
       .then(response => {
         setMenuItems(response.data);
@@ -81,25 +81,42 @@ function App() {
       return;
     }
 
-    const newMenuItem = {
-      id: menuItems.length > 0 ? Math.max(...menuItems.map(i => i.id)) + 1 : 1,
-      name: newItem.name,
-      price: parseFloat(newItem.price)
-    };
-
+    const formData = new FormData();
+    formData.append('name', newItem.name);
+    formData.append('price', parseFloat(newItem.price));
     if (imageFile) {
-      newMenuItem.image = URL.createObjectURL(imageFile);
-    } else { newMenuItem.image = getFoodImage(''); } // Assign default if no image uploaded
+      formData.append('image', imageFile); // Append the actual file
+    }
 
-    setMenuItems([...menuItems, newMenuItem]);
-    setNewItem({ name: '', price: '' });
-    setImageFile(null);
-    setImagePreview(getFoodImage(''));
-    setEditingItem(null); // Ensure edit form is closed
-    setShowAddItem(false);
-    alert(`✅ "${newItem.name}" added to menu!`);
+    try {
+      // Assuming backend endpoint for adding menu items is /api/admin/menu
+      // and it returns the newly created item with its _id and image URL
+      const response = await api.post('/api/admin/menu', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data' // Axios will set boundary automatically
+        }
+      });
+      const addedItem = response.data.item; // Assuming backend returns { item: { ... } }
+
+      // Revoke temporary URL if it was a local file preview
+      if (imageFile) {
+        URL.revokeObjectURL(imagePreview);
+      }
+
+      setMenuItems(prevItems => [...prevItems, addedItem]);
+      setNewItem({ name: '', price: '' });
+      setImageFile(null);
+      setImagePreview(getFoodImage(''));
+      setEditingItem(null); // Ensure edit form is closed
+      setShowAddItem(false);
+      alert(`✅ "${addedItem.name}" added to menu!`);
+    } catch (error) {
+      console.error('Error adding new menu item:', error);
+      alert('Failed to add new menu item. Please try again.');
+    }
   };
 
+  // Handle editing an item (pre-fill form)
   const handleEditItem = (item) => {
     setEditingItem(item);
     setNewItem({ name: item.name, price: item.price.toString() }); // Pre-fill form
@@ -108,6 +125,7 @@ function App() {
     setImageFile(null); // Clear file input for edit, user can re-upload
   };
 
+  // Cancel editing an item
   const handleCancelEdit = () => {
     setEditingItem(null);
     setNewItem({ name: '', price: '' });
@@ -127,14 +145,11 @@ function App() {
     }
 
     try {
-      // Use the centralized api instance, token handled by interceptor
-      const response = await api.post(
-        '/api/users/change-password',
-        {
-          oldPassword: passwordData.oldPassword,
-          newPassword: passwordData.newPassword,
-        },
-      );
+      const response = await api.post('/api/users/change-password', {
+        oldPassword: passwordData.oldPassword,
+        newPassword: passwordData.newPassword,
+      });
+
 
       if (response.data.success) {
         setPasswordMessage({ type: 'success', text: '✅ Password changed successfully!' });
@@ -157,38 +172,57 @@ function App() {
     setPasswordMessage({ type: '', text: '' });
   };
 
-  const handleUpdateItem = () => {
+  // Handle updating an item (save changes to backend)
+  const handleUpdateItem = async () => { // Make it async
     if (!editingItem) return;
 
     if (!newItem.name || !newItem.price) {
       alert('Please enter item name and price!');
       return;
     }
+    
+    const formData = new FormData();
+    formData.append('name', newItem.name);
+    formData.append('price', parseFloat(newItem.price));
 
-    const updatedMenuItem = {
-      ...editingItem,
-      name: newItem.name,
-      price: parseFloat(newItem.price)
-    };
-
+    let newImageUploaded = false;
     if (imageFile) {
-      // If a new file is uploaded, use its URL
-      updatedMenuItem.image = URL.createObjectURL(imageFile);
-    } else if (imagePreview === getFoodImage('') && !editingItem.image) {
-      // If no new file and original item had no image, keep default
-      updatedMenuItem.image = getFoodImage('');
-    } else if (!imageFile && editingItem.image) {
-      // If no new file, but original item had an image, retain it
-      updatedMenuItem.image = editingItem.image;
+      formData.append('image', imageFile);
+      newImageUploaded = true;
+    } else if (imagePreview === getFoodImage('') && editingItem.image) {
+      // If image preview is default and original item had an image, means user wants to remove it
+      formData.append('remove_image', 'true');
     }
 
-    setMenuItems(menuItems.map(item =>
-      (item._id || item.id) === (editingItem._id || editingItem.id) ? updatedMenuItem : item
-    ));
-    handleCancelEdit(); // Reset form and hide
-    alert(`✅ "${updatedMenuItem.name}" updated successfully!`);
-  };
+    try {
+      // Assuming backend endpoint for updating menu items is /api/admin/menu/:id
+      // and it returns the updated item
+      const response = await api.put(`/api/admin/menu/${editingItem._id || editingItem.id}`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+      const updatedItem = response.data.item; // Assuming backend returns { item: { ... } }
 
+      // Revoke old temporary URL if it was a local file preview
+      if (editingItem.image && editingItem.image.startsWith('blob:')) {
+        URL.revokeObjectURL(editingItem.image);
+      }
+      // Revoke new temporary URL if a new file was uploaded
+      if (newImageUploaded) {
+        URL.revokeObjectURL(imagePreview);
+      }
+
+      setMenuItems(prevItems => prevItems.map(item =>
+        (item._id || item.id) === (updatedItem._id || updatedItem.id) ? updatedItem : item
+      ));
+      handleCancelEdit(); // Reset form and hide
+      alert(`✅ "${updatedItem.name}" updated successfully!`);
+    } catch (error) {
+      console.error('Error updating menu item:', error);
+      alert('Failed to update menu item. Please try again.');
+    }
+  };
 
   // Cart functions
   const addToCart = (item) => {
@@ -217,19 +251,15 @@ function App() {
       }
     };
 
-    // Use the centralized api instance, token handled by interceptor
-    api.post('/api/orders', orderData)
-      .then(response => {
-        // Assuming response.data.data.total is the correct path based on previous errors
-        alert(`✅ Order placed! Total: $${response.data.data.total.toFixed(2)}`);
-        setCart([]);
-        // Automatically navigate to the orders page to see the new order
-        setShowOrders(true);
-      })
-      .catch(error => {
-        console.error('Error placing order:', error);
-        alert('Failed to place order. Please try again.');
-      });
+    try {
+      const response = await api.post('/api/orders', orderData);
+      alert(`✅ Order placed! Total: $${response.data.data.total.toFixed(2)}`);
+      setCart([]);
+      setShowOrders(true);
+    } catch (error) {
+      console.error('Error placing order:', error);
+      alert('Failed to place order. Please try again.');
+    }
   };
 
   // Orders Page
@@ -400,7 +430,7 @@ function App() {
                     setImageFile(file);
                     setImagePreview(URL.createObjectURL(file));
                   } else {
-                    setImageFile(null); // Clear the file
+                    setImageFile(null); // Clear the file input
                     setImagePreview(editingItem.image || getFoodImage('')); // Revert to original image or default
                   }
                 }}
@@ -416,7 +446,7 @@ function App() {
 
         {/* Action buttons for Add/Edit */}
         <div style={{ width: '100%', maxWidth: '1200px', marginBottom: '1rem', display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
-          {currentUser?.role === 'admin' && !editingItem && ( // Only show add button for admin when not editing
+          {currentUser?.role === 'admin' && !editingItem && !showAddItem && ( // Only show add button for admin when not editing and not already showing add form
             <button onClick={() => { // Toggle add form
               setShowAddItem(prev => !prev);
               setEditingItem(null); // Ensure edit form is closed
@@ -426,6 +456,17 @@ function App() {
             }} className="btn btn-primary" style={{ background: '#E53935' }}>
             {showAddItem ? '✖ Cancel' : '➕ Add New Item'}
           </button>
+          )}
+          {currentUser?.role === 'admin' && showAddItem && ( // Show cancel button for add form
+            <button onClick={() => {
+              setShowAddItem(false);
+              setNewItem({ name: '', price: '' });
+              setImageFile(null);
+              setImagePreview(getFoodImage(''));
+            }} className="btn btn-danger">
+              ✖ Cancel Add
+            </button>
+
           )}
         </div>
 

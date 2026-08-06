@@ -17,23 +17,28 @@ function Orders() {
   const [todayStats, setTodayStats] = useState({ totalOrders: 0, totalMoney: 0, itemSummary: {} });
 
   const fetchOrders = useCallback(() => {
-  setLoading(true);
-  setError(null);
-  // Use the token-aware 'api' instance for all calls
-  Promise.all([
-    api.get('/api/my-orders'),
-    api.get('/api/menu')
-  ])
-    .then(([ordersRes, menuRes]) => {
-      const ordersData = ordersRes.data.orders || [];
-      setOrders(ordersData);
-      setMenuItems(menuRes.data);
-    })
-    .catch(err => {
-      console.error('Error fetching orders:', err);
-      setError('Failed to load orders. Please try again.');
-    })
-    .finally(() => setLoading(false));
+    setLoading(true);
+    // Use the token-aware 'api' instance for all calls
+    Promise.all([
+      api.get('/api/my-orders'),
+      api.get('/api/menu')
+    ])
+      .then(res => {
+        // Ensure that we are setting an array to the orders state
+        const ordersData = res[0].data;
+        if (Array.isArray(ordersData)) {
+          setOrders(ordersData);
+        } else if (ordersData && Array.isArray(ordersData.orders)) {
+          setOrders(ordersData.orders);
+        }
+        setMenuItems(res[1].data);
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error('Error fetching orders:', err);
+        setError('Failed to load orders');
+        setLoading(false);
+      });
   }, []);
 
   useEffect(() => {
