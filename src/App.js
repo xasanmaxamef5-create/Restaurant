@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from './api'; // Import the centralized api instance
 import Orders from './Orders';
 import Salary from './Salary';
 import Expenses from './Expenses';
@@ -25,8 +25,9 @@ function App() {
     price: ''
   });
   const [imageFile, setImageFile] = useState(null);
+  const [editingItem, setEditingItem] = useState(null); // New state for editing
   const [showChangePassword, setShowChangePassword] = useState(false);
-  const [imagePreview, setImagePreview] = useState('https://images.unsplash.com/photo-1586201375761-83865001e8ac?w=300&h=300&fit=crop');
+  const [imagePreview, setImagePreview] = useState(getFoodImage('')); // Use the default from getFoodImage
   const [passwordData, setPasswordData] = useState({
     oldPassword: '',
     newPassword: '',
@@ -41,7 +42,7 @@ function App() {
   const fetchMenu = () => {
     setLoading(true);
     console.log("API URL:", API_BASE_URL);
-    axios.get(`${API_BASE_URL}/api/menu`)
+    api.get('/api/menu') // Use the centralized api instance
       .then(response => {
         setMenuItems(response.data);
         setLoading(false);
@@ -88,14 +89,30 @@ function App() {
 
     if (imageFile) {
       newMenuItem.image = URL.createObjectURL(imageFile);
-    }
+    } else { newMenuItem.image = getFoodImage(''); } // Assign default if no image uploaded
 
     setMenuItems([...menuItems, newMenuItem]);
     setNewItem({ name: '', price: '' });
     setImageFile(null);
-    setImagePreview('https://images.unsplash.com/photo-1586201375761-83865001e8ac?w=300&h=300&fit=crop');
+    setImagePreview(getFoodImage(''));
+    setEditingItem(null); // Ensure edit form is closed
     setShowAddItem(false);
     alert(`✅ "${newItem.name}" added to menu!`);
+  };
+
+  const handleEditItem = (item) => {
+    setEditingItem(item);
+    setNewItem({ name: item.name, price: item.price.toString() }); // Pre-fill form
+    setImagePreview(item.image || getFoodImage('')); // Use existing image or default
+    setShowAddItem(false); // Ensure add form is closed
+    setImageFile(null); // Clear file input for edit, user can re-upload
+  };
+
+  const handleCancelEdit = () => {
+    setEditingItem(null);
+    setNewItem({ name: '', price: '' });
+    setImagePreview(getFoodImage(''));
+    setImageFile(null);
   };
 
   // Change password
@@ -110,16 +127,13 @@ function App() {
     }
 
     try {
-      const token = localStorage.getItem('authToken');
-      const response = await axios.post(
-        `${API_BASE_URL}/api/users/change-password`,
+      // Use the centralized api instance, token handled by interceptor
+      const response = await api.post(
+        '/api/users/change-password',
         {
           oldPassword: passwordData.oldPassword,
           newPassword: passwordData.newPassword,
         },
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
       );
 
       if (response.data.success) {
@@ -142,6 +156,39 @@ function App() {
     setPasswordData({ ...passwordData, [e.target.name]: e.target.value });
     setPasswordMessage({ type: '', text: '' });
   };
+
+  const handleUpdateItem = () => {
+    if (!editingItem) return;
+
+    if (!newItem.name || !newItem.price) {
+      alert('Please enter item name and price!');
+      return;
+    }
+
+    const updatedMenuItem = {
+      ...editingItem,
+      name: newItem.name,
+      price: parseFloat(newItem.price)
+    };
+
+    if (imageFile) {
+      // If a new file is uploaded, use its URL
+      updatedMenuItem.image = URL.createObjectURL(imageFile);
+    } else if (imagePreview === getFoodImage('') && !editingItem.image) {
+      // If no new file and original item had no image, keep default
+      updatedMenuItem.image = getFoodImage('');
+    } else if (!imageFile && editingItem.image) {
+      // If no new file, but original item had an image, retain it
+      updatedMenuItem.image = editingItem.image;
+    }
+
+    setMenuItems(menuItems.map(item =>
+      (item._id || item.id) === (editingItem._id || editingItem.id) ? updatedMenuItem : item
+    ));
+    handleCancelEdit(); // Reset form and hide
+    alert(`✅ "${updatedMenuItem.name}" updated successfully!`);
+  };
+
 
   // Cart functions
   const addToCart = (item) => {
@@ -170,13 +217,10 @@ function App() {
       }
     };
 
-    const token = localStorage.getItem('authToken');
-    axios.post(`${API_BASE_URL}/api/orders`, orderData, {
-      headers: {
-        Authorization: `Bearer ${token}`
-      }
-    })
+    // Use the centralized api instance, token handled by interceptor
+    api.post('/api/orders', orderData)
       .then(response => {
+        // Assuming response.data.data.total is the correct path based on previous errors
         alert(`✅ Order placed! Total: $${response.data.data.total.toFixed(2)}`);
         setCart([]);
         // Automatically navigate to the orders page to see the new order
@@ -312,6 +356,7 @@ function App() {
           </div>
         )}
         
+        {/* Edit Item Form */}
         {showAddItem && (
           <div className="add-item-form">
             <h3>📝 Add New Menu Item</h3>
@@ -329,6 +374,7 @@ function App() {
                     setImageFile(file);
                     setImagePreview(URL.createObjectURL(file));
                   }
+                  // No else here, if file is cleared, imagePreview remains the last selected file or default
                 }}
               />
               {imagePreview && <img src={imagePreview} alt="Preview" style={{ width: '50px', height: '50px', borderRadius: '8px', objectFit: 'cover' }} />}
@@ -336,11 +382,51 @@ function App() {
             </div>
           </div>
         )}
+        
+        {editingItem && ( // Show edit form if an item is being edited
+          <div className="add-item-form">
+            <h3>✏️ Edit Menu Item: {editingItem.name}</h3>
+            <div className="form-row">
+              <input type="text" placeholder="Item Name" value={newItem.name} onChange={(e) => setNewItem({ ...newItem, name: e.target.value })} />
+              <input type="number" placeholder="Price ($)" value={newItem.price} onChange={(e) => setNewItem({ ...newItem, price: e.target.value })} step="0.01" />
+            </div>
+            <div className="form-row">
+              <input 
+                type="file" 
+                accept="image/*"
+                onChange={(e) => {
+                  const file = e.target.files[0];
+                  if (file) {
+                    setImageFile(file);
+                    setImagePreview(URL.createObjectURL(file));
+                  } else {
+                    setImageFile(null); // Clear the file
+                    setImagePreview(editingItem.image || getFoodImage('')); // Revert to original image or default
+                  }
+                }}
+              />
+              {imagePreview && <img src={imagePreview} alt="Preview" style={{ width: '50px', height: '50px', borderRadius: '8px', objectFit: 'cover' }} />}
+            </div>
+            <div className="form-row" style={{ justifyContent: 'flex-end' }}>
+              <button onClick={handleCancelEdit} className="btn btn-danger">Cancel</button>
+              <button onClick={handleUpdateItem} className="save-btn">💾 Save Changes</button>
+            </div>
+          </div>
+        )}
 
-        <div style={{ width: '100%', maxWidth: '1200px', marginBottom: '1rem', display: 'flex', justifyContent: 'flex-end' }}>
-          <button onClick={() => setShowAddItem(!showAddItem)} className="btn btn-primary" style={{ background: '#E53935' }}>
+        {/* Action buttons for Add/Edit */}
+        <div style={{ width: '100%', maxWidth: '1200px', marginBottom: '1rem', display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+          {currentUser?.role === 'admin' && !editingItem && ( // Only show add button for admin when not editing
+            <button onClick={() => { // Toggle add form
+              setShowAddItem(prev => !prev);
+              setEditingItem(null); // Ensure edit form is closed
+              setNewItem({ name: '', price: '' }); // Clear form fields
+              setImageFile(null); // Clear any selected file
+              setImagePreview(getFoodImage('')); // Reset image preview
+            }} className="btn btn-primary" style={{ background: '#E53935' }}>
             {showAddItem ? '✖ Cancel' : '➕ Add New Item'}
           </button>
+          )}
         </div>
 
         <div className="menu-section">
@@ -360,6 +446,9 @@ function App() {
                   <p className="price">${item.price.toFixed(2)}</p>
                 </div>
                 <button onClick={() => addToCart(item)} className="add-btn">➕ Add</button>
+                {currentUser?.role === 'admin' && ( // Only show edit for admin
+                  <button onClick={() => handleEditItem(item)} className="btn btn-orange" style={{ width: '80%', marginTop: '0.5rem', fontSize: '0.85rem', padding: '0.4rem 1.2rem' }}>✏️ Edit</button>
+                )}
               </div>
             ))}
           </div>

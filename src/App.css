@@ -209,6 +209,10 @@ body {
   width: 80%;
 }
 
+.menu-card .btn-orange {
+  background: #E07C3C;
+}
+
 .add-btn:hover {
   background: var(--primary-light);
   transform: scale(1.02);
