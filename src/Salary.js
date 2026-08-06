@@ -1,8 +1,28 @@
 import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 import { exportPDF } from './PDFExport';
 import { exportToExcel } from './ExcelExport';
-import api from './api'; // Import the centralized api instance
+import API_BASE_URL from './apiConfig';
 import './Salary.css';
+
+// Create axios instance with default config
+const api = axios.create({
+  baseURL: API_BASE_URL,
+});
+
+// Add interceptor to include token in all requests
+api.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('authToken');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
 
 function Salary() {
   const [employees, setEmployees] = useState([]);
@@ -22,18 +42,22 @@ function Salary() {
   }, []); // This should only run once on component mount
 
   const fetchEmployees = async () => {
-    setLoading(true);
-    setError(null);
-    api.get('/api/salary')
-      .then(response => {
-        // Ensure that we always set an array to the state
-        setEmployees(Array.isArray(response.data) ? response.data : []);
-      })
-      .catch(err => {
+    try {
+      setLoading(true);
+      const response = await api.get('/api/salary');
+      // Ensure that we always set an array to the state
+      setEmployees(response.data.employees || []);
+      setError(null);
+    } catch (err) {
       console.error('Error fetching employees:', err);
-        setError('Failed to load employees. Please try again.');
-      })
-      .finally(() => setLoading(false));
+      if (err.response?.status === 401) {
+        setError('Please login to view employees');
+      } else {
+        setError('Failed to load employees');
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
   const calculateNetSalary = (salary, advance) => {
