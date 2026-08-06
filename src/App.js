@@ -353,7 +353,7 @@ function App() {
             {menuItems.map((item) => (
               <div key={item._id || item.id} className="menu-card">
                 <div className="card-image">
-                  <img src={getFoodImage(item.name)} alt={item.name} loading="lazy" />
+                  <img src={item.image || getFoodImage(item.name)} alt={item.name} loading="lazy" />
                 </div>
                 <div className="card-info">
                   <h3>{item.name}</h3>
