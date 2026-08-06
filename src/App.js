@@ -6,10 +6,28 @@ import Expenses from './Expenses';
 import Login from './Login';
 import Register from './Register';
 import { getFoodImage } from './foodImages';
-import API_BASE_URL from './apiConfig';
 import { useAuth } from './AuthContext';
 import './App.css';
 
+/**
+ * A portal component to handle the display and toggling of Login and Register forms.
+ * It encapsulates its own state, avoiding conditional hook calls in the main App component.
+ */
+function AuthPortal() {
+  const [showLogin, setShowLogin] = useState(true);
+  const switchToRegister = () => setShowLogin(false);
+  const switchToLogin = () => setShowLogin(true);
+
+  return (
+    <div>
+      {showLogin ? (
+        <Login switchToRegister={switchToRegister} />
+      ) : (
+        <Register switchToLogin={switchToLogin} />
+      )}
+    </div>
+  );
+}
 
 function App() {
   const [menuItems, setMenuItems] = useState([]);
@@ -35,47 +53,33 @@ function App() {
   });
   const [passwordMessage, setPasswordMessage] = useState({ type: '', text: '' });
   
-  const { isAuthenticated, currentUser, logout } = useAuth();
-  const [showLogin, setShowLogin] = useState(true);
+  const { isAuthenticated, currentUser, logout, loading: authLoading } = useAuth();
 
   // Fetch menu
-  const fetchMenu = () => {
+  const fetchMenu = async () => {
     setLoading(true);
-    // console.log("API URL:", API_BASE_URL); // Removed as API_BASE_URL is configured in api.js
-    api.get('/api/menu') // Use the centralized api instance
-      .then(response => {
-        setMenuItems(response.data);
-        setLoading(false);
-      })
-      .catch(error => {
-        console.error('Error fetching menu:', error);
-        setError('Failed to load menu. Make sure backend is running.');
-        setLoading(false);
-      });
+    try {
+      const response = await api.get('/api/menu');
+      setMenuItems(response.data);
+    } catch (error) {
+      console.error('Error fetching menu:', error);
+      setError('Failed to load menu. Make sure backend is running.');
+    } finally {
+      setLoading(false);
+    }
   };
-
+  
   useEffect(() => {
     fetchMenu();
   }, []);
 
-  const switchToRegister = () => setShowLogin(false);
-  const switchToLogin = () => setShowLogin(true);
-
   // Show Login/Register if not authenticated
-  if (!isAuthenticated) {
-    return (
-      <div>
-        {showLogin ? (
-          <Login switchToRegister={switchToRegister} />
-        ) : (
-          <Register switchToLogin={switchToLogin} />
-        )}
-      </div>
-    );
+  if (authLoading || !isAuthenticated) {
+    return <AuthPortal />;
   }
 
   // Add new item
-  const addNewItem = () => {
+  const addNewItem = async () => {
     if (!newItem.name || !newItem.price) {
       alert('Please enter item name and price!');
       return;
@@ -237,7 +241,7 @@ function App() {
 
   const totalPrice = cart.reduce((sum, item) => sum + item.price, 0);
 
-  const placeOrder = () => {
+  const placeOrder = async () => {
     if (cart.length === 0) {
       alert('Cart-kaaga waa maran!');
       return;
@@ -403,8 +407,11 @@ function App() {
                   if (file) {
                     setImageFile(file);
                     setImagePreview(URL.createObjectURL(file));
+                  } else {
+                    // User cancelled file selection, reset to default
+                    setImageFile(null);
+                    setImagePreview(getFoodImage(''));
                   }
-                  // No else here, if file is cleared, imagePreview remains the last selected file or default
                 }}
               />
               {imagePreview && <img src={imagePreview} alt="Preview" style={{ width: '50px', height: '50px', borderRadius: '8px', objectFit: 'cover' }} />}
@@ -447,14 +454,11 @@ function App() {
         {/* Action buttons for Add/Edit */}
         <div style={{ width: '100%', maxWidth: '1200px', marginBottom: '1rem', display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
           {currentUser?.role === 'admin' && !editingItem && !showAddItem && ( // Only show add button for admin when not editing and not already showing add form
-            <button onClick={() => { // Toggle add form
-              setShowAddItem(prev => !prev);
+            <button onClick={() => {
+              setShowAddItem(true);
               setEditingItem(null); // Ensure edit form is closed
-              setNewItem({ name: '', price: '' }); // Clear form fields
-              setImageFile(null); // Clear any selected file
-              setImagePreview(getFoodImage('')); // Reset image preview
             }} className="btn btn-primary" style={{ background: '#E53935' }}>
-            {showAddItem ? '✖ Cancel' : '➕ Add New Item'}
+            ➕ Add New Item
           </button>
           )}
           {currentUser?.role === 'admin' && showAddItem && ( // Show cancel button for add form
