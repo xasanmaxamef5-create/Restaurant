@@ -445,8 +445,22 @@ function App() {
           <div className="add-item-form">
             <h3>📝 Add New Menu Item</h3>
             <div className="form-row">
-              <input type="text" placeholder="Item Name" value={newItem.name} onChange={(e) => setNewItem({ ...newItem, name: e.target.value })} />
-              <input type="number" placeholder="Price ($)" value={newItem.price} onChange={(e) => setNewItem({ ...newItem, price: e.target.value })} step="0.01" />
+              <input
+                id="menu-item-name"
+                name="name"
+                type="text"
+                placeholder="Item Name"
+                value={newItem.name}
+                onChange={(e) => setNewItem({ ...newItem, name: e.target.value })}
+              />
+              <input
+                id="menu-item-price"
+                name="price"
+                type="number"
+                placeholder="Price ($)"
+                value={newItem.price}
+                onChange={(e) => setNewItem({ ...newItem, price: e.target.value })} step="0.01"
+              />
             </div>
             <div className="form-row">
               <input 
@@ -476,8 +490,22 @@ function App() {
           <div className="add-item-form">
             <h3>✏️ Edit Menu Item: {editingItem.name}</h3>
             <div className="form-row">
-              <input type="text" placeholder="Item Name" value={newItem.name} onChange={(e) => setNewItem({ ...newItem, name: e.target.value })} />
-              <input type="number" placeholder="Price ($)" value={newItem.price} onChange={(e) => setNewItem({ ...newItem, price: e.target.value })} step="0.01" />
+              <input
+                id="edit-menu-item-name"
+                name="name"
+                type="text"
+                placeholder="Item Name"
+                value={newItem.name}
+                onChange={(e) => setNewItem({ ...newItem, name: e.target.value })}
+              />
+              <input
+                id="edit-menu-item-price"
+                name="price"
+                type="number"
+                placeholder="Price ($)"
+                value={newItem.price}
+                onChange={(e) => setNewItem({ ...newItem, price: e.target.value })} step="0.01"
+              />
             </div>
             <div className="form-row">
               <input 
