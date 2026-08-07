@@ -1,12 +1,11 @@
 import axios from 'axios';
 import API_BASE_URL from './apiConfig';
 
-// Create a single, configured axios instance
 const api = axios.create({
   baseURL: API_BASE_URL,
 });
 
-// Request interceptor to automatically add the token to headers
+// Add a request interceptor to include the auth token in all requests
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('authToken');
@@ -18,15 +17,21 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Response interceptor to handle 401 Unauthorized errors globally
+// Add a response interceptor to handle 401 errors globally
 api.interceptors.response.use(
-  (response) => response,
+  (response) => response, // Pass through successful responses
   (error) => {
+    // Check if the error is a 401 Unauthorized
     if (error.response && error.response.status === 401) {
-      // This will trigger the logout logic in AuthContext and redirect to login
-      window.location.href = '/login'; 
+      // Clear user data from localStorage
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('currentUser');
+      
+      // Redirect to login page by reloading the window.
+      // The AuthContext will handle showing the Login component.
+      window.location.reload();
     }
-    return Promise.reject(error);
+    return Promise.reject(error); // Propagate other errors
   }
 );
 

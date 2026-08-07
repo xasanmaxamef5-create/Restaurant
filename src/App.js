@@ -52,6 +52,7 @@ function App() {
     confirmPassword: ''
   });
   const [passwordMessage, setPasswordMessage] = useState({ type: '', text: '' });
+  const [isSubmitting, setIsSubmitting] = useState(false); // To prevent double submissions
   
   const { isAuthenticated, currentUser, logout, loading: authLoading } = useAuth();
 
@@ -59,8 +60,8 @@ function App() {
   const fetchMenu = async () => {
     setLoading(true);
     try {
-      const response = await api.get('/api/menu');
-      setMenuItems(response.data);
+      const response = await api.get('/api/menu'); // Assuming response.data is an array of menu items
+      setMenuItems(response.data.filter(item => item != null)); // Filter out any null or undefined items
     } catch (error) {
       console.error('Error fetching menu:', error);
       setError('Failed to load menu. Make sure backend is running.');
@@ -80,8 +81,12 @@ function App() {
 
   // Add new item
   const addNewItem = async () => {
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+
     if (!newItem.name || !newItem.price) {
       alert('Please enter item name and price!');
+      setIsSubmitting(false);
       return;
     }
 
@@ -95,19 +100,19 @@ function App() {
     try {
       // Assuming backend endpoint for adding menu items is /api/admin/menu
       // and it returns the newly created item with its _id and image URL
-      const response = await api.post('/api/admin/menu', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data' // Axios will set boundary automatically
-        }
-      });
-      const addedItem = response.data.item; // Assuming backend returns { item: { ... } }
+      const response = await api.post('/api/admin/menu', formData); // Backend returns { success, message, data }
+      const addedItem = response.data?.data;
 
       // Revoke temporary URL if it was a local file preview
       if (imageFile) {
         URL.revokeObjectURL(imagePreview);
       }
 
-      setMenuItems(prevItems => [...prevItems, addedItem]);
+      if (!addedItem) {
+        throw new Error('Backend did not return created menu item');
+      }
+
+      setMenuItems((prevItems) => [...prevItems.filter(Boolean), addedItem]);
       setNewItem({ name: '', price: '' });
       setImageFile(null);
       setImagePreview(getFoodImage(''));
@@ -117,11 +122,16 @@ function App() {
     } catch (error) {
       console.error('Error adding new menu item:', error);
       alert('Failed to add new menu item. Please try again.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   // Handle editing an item (pre-fill form)
   const handleEditItem = (item) => {
+    if (!item) {
+      return; // Prevent setting state with undefined
+    }
     setEditingItem(item);
     setNewItem({ name: item.name, price: item.price.toString() }); // Pre-fill form
     setImagePreview(item.image || getFoodImage('')); // Use existing image or default
@@ -139,12 +149,16 @@ function App() {
 
   // Change password
   const handleChangePassword = async () => {
+    if (isSubmitting) return;
+    setIsSubmitting(true);
     if (passwordData.newPassword !== passwordData.confirmPassword) {
       setPasswordMessage({ type: 'error', text: 'New passwords do not match!' });
+      setIsSubmitting(false);
       return;
     }
     if (passwordData.newPassword.length < 6) {
       setPasswordMessage({ type: 'error', text: 'New password must be at least 6 characters.' });
+      setIsSubmitting(false);
       return;
     }
 
@@ -168,6 +182,8 @@ function App() {
     } catch (error) {
       const errorMessage = error.response?.data?.message || 'An error occurred. Please try again.';
       setPasswordMessage({ type: 'error', text: `❌ ${errorMessage}` });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -178,59 +194,75 @@ function App() {
 
   // Handle updating an item (save changes to backend)
   const handleUpdateItem = async () => { // Make it async
-    if (!editingItem) return;
+    if (!editingItem || isSubmitting) return;
 
-    if (!newItem.name || !newItem.price) {
+    const itemId = editingItem._id || editingItem.id;
+
+    if (!itemId) {
+      alert('❌ Menu item ID lama helin.');
+      return;
+    }
+
+    if (!newItem?.name || !newItem?.price) {
       alert('Please enter item name and price!');
       return;
     }
-    
+
+    setIsSubmitting(true);
+
     const formData = new FormData();
-    formData.append('name', newItem.name);
+    formData.append('name', newItem.name.trim());
     formData.append('price', parseFloat(newItem.price));
 
-    let newImageUploaded = false;
     if (imageFile) {
       formData.append('image', imageFile);
-      newImageUploaded = true;
-    } else if (imagePreview === getFoodImage('') && editingItem.image) {
-      // If image preview is default and original item had an image, means user wants to remove it
-      formData.append('remove_image', 'true');
     }
 
     try {
-      // Assuming backend endpoint for updating menu items is /api/admin/menu/:id
-      // and it returns the updated item
-      const response = await api.put(`/api/admin/menu/${editingItem._id || editingItem.id}`, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data'
-        }
-      });
-      const updatedItem = response.data.item; // Assuming backend returns { item: { ... } }
+      const response = await api.put(
+        `/api/admin/menu/${itemId}`,
+        formData
+      );
 
-      // Revoke old temporary URL if it was a local file preview
-      if (editingItem.image && editingItem.image.startsWith('blob:')) {
-        URL.revokeObjectURL(editingItem.image);
-      }
-      // Revoke new temporary URL if a new file was uploaded
-      if (newImageUploaded) {
-        URL.revokeObjectURL(imagePreview);
+      // Backend-kaaga wuxuu soo celiyaa data, ma aha item
+      const updatedItem = response.data?.data;
+
+      if (!updatedItem) {
+        throw new Error('Backend did not return updated menu item');
       }
 
-      setMenuItems(prevItems => prevItems.map(item =>
-        (item._id || item.id) === (updatedItem._id || updatedItem.id) ? updatedItem : item
-      ));
-      handleCancelEdit(); // Reset form and hide
+      const updatedId = updatedItem._id || updatedItem.id;
+
+      if (!updatedId) {
+        throw new Error('Updated menu item has no ID');
+      }
+
+      setMenuItems((prevItems) =>
+        prevItems
+          .filter(Boolean)
+          .map((item) => {
+            if (!item) return item;
+            const itemId = item._id || item.id;
+            return itemId === updatedId ? updatedItem : item;
+          })
+      );
+
+      handleCancelEdit();
+
       alert(`✅ "${updatedItem.name}" updated successfully!`);
     } catch (error) {
-      console.error('Error updating menu item:', error);
-      alert('Failed to update menu item. Please try again.');
+      console.error('Error updating menu item:', error.response?.data || error);
+      alert(error.response?.data?.message || 'Failed to update menu item. Please try again.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   // Cart functions
   const addToCart = (item) => {
-    setCart([...cart, item]);
+    if (!item) return;
+
+    setCart(prevCart => [...prevCart, item]);
   };
 
   const removeFromCart = (index) => {
@@ -239,30 +271,44 @@ function App() {
     setCart(newCart);
   };
 
-  const totalPrice = cart.reduce((sum, item) => sum + item.price, 0);
+  const totalPrice = cart.reduce((sum, item) => sum + (Number(item?.price) || 0), 0);
 
   const placeOrder = async () => {
+    if (isSubmitting) return;
+
     if (cart.length === 0) {
       alert('Cart-kaaga waa maran!');
       return;
     }
 
+    setIsSubmitting(true);
+
+    // Calculate total price at the time of placing the order to ensure accuracy
+    const currentTotal = cart.reduce((sum, item) => sum + (Number(item?.price) || 0), 0);
+
     const orderData = {
-      items: cart,
-      total: totalPrice,
-      customer: { // Ensure customer object is sent as backend expects it
-        name: currentUser.name
-      }
+      items: cart.filter(Boolean),
+      total: currentTotal,
+      customer: currentUser?._id || currentUser?.id,
     };
 
     try {
       const response = await api.post('/api/orders', orderData);
-      alert(`✅ Order placed! Total: $${response.data.data.total.toFixed(2)}`);
+
+      const orderTotal = Number(response.data?.total) || Number(response.data?.data?.total) || currentTotal;
+
+      alert(`✅ Order placed! Total: $${orderTotal.toFixed(2)}`);
+
       setCart([]);
+
+      await fetchMenu();
+
       setShowOrders(true);
     } catch (error) {
-      console.error('Error placing order:', error);
-      alert('Failed to place order. Please try again.');
+      console.error('Error placing order:', error.response?.data || error);
+      alert(error.response?.data?.message || 'Failed to place order. Please try again.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -385,7 +431,9 @@ function App() {
             </div>
             <div className="form-row" style={{ justifyContent: 'flex-end' }}>
               <button onClick={() => setShowChangePassword(false)} className="btn btn-danger">Cancel</button>
-              <button onClick={handleChangePassword} className="save-btn">💾 Update Password</button>
+              <button onClick={handleChangePassword} className="save-btn" disabled={isSubmitting}>
+                {isSubmitting ? 'Updating...' : '💾 Update Password'}
+              </button>
             </div>
           </div>
         )}
@@ -415,7 +463,9 @@ function App() {
                 }}
               />
               {imagePreview && <img src={imagePreview} alt="Preview" style={{ width: '50px', height: '50px', borderRadius: '8px', objectFit: 'cover' }} />}
-              <button onClick={addNewItem} className="save-btn" style={{ marginLeft: 'auto' }}>💾 Add to Menu</button>
+              <button onClick={addNewItem} className="save-btn" style={{ marginLeft: 'auto' }} disabled={isSubmitting}>
+                {isSubmitting ? 'Adding...' : '💾 Add to Menu'}
+              </button>
             </div>
           </div>
         )}
@@ -446,14 +496,16 @@ function App() {
             </div>
             <div className="form-row" style={{ justifyContent: 'flex-end' }}>
               <button onClick={handleCancelEdit} className="btn btn-danger">Cancel</button>
-              <button onClick={handleUpdateItem} className="save-btn">💾 Save Changes</button>
+              <button onClick={handleUpdateItem} className="save-btn" disabled={isSubmitting}>
+                {isSubmitting ? 'Saving...' : '💾 Save Changes'}
+              </button>
             </div>
           </div>
         )}
 
         {/* Action buttons for Add/Edit */}
         <div style={{ width: '100%', maxWidth: '1200px', marginBottom: '1rem', display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
-          {currentUser?.role === 'admin' && !editingItem && !showAddItem && ( // Only show add button for admin when not editing and not already showing add form
+          {!editingItem && !showAddItem && (
             <button onClick={() => {
               setShowAddItem(true);
               setEditingItem(null); // Ensure edit form is closed
@@ -461,7 +513,7 @@ function App() {
             ➕ Add New Item
           </button>
           )}
-          {currentUser?.role === 'admin' && showAddItem && ( // Show cancel button for add form
+          {showAddItem && (
             <button onClick={() => {
               setShowAddItem(false);
               setNewItem({ name: '', price: '' });
@@ -470,7 +522,6 @@ function App() {
             }} className="btn btn-danger">
               ✖ Cancel Add
             </button>
-
           )}
         </div>
 
@@ -481,19 +532,19 @@ function App() {
           </div>
 
           <div className="menu-grid">
-            {menuItems.map((item) => (
-              <div key={item._id || item.id} className="menu-card">
+          {menuItems.filter(Boolean).map((item) => (
+            <div key={item?._id || item?.id} className="menu-card">
                 <div className="card-image">
-                  <img src={item.image || getFoodImage(item.name)} alt={item.name} loading="lazy" />
+                <img src={item?.image || getFoodImage(item?.name || '')} alt={item?.name || 'Menu item'} loading="lazy" />
                 </div>
                 <div className="card-info">
-                  <h3>{item.name}</h3>
-                  <p className="price">${item.price.toFixed(2)}</p>
+                <h3>{item?.name}</h3>
+                <p className="price">${(Number(item?.price) || 0).toFixed(2)}</p>
                 </div>
                 <button onClick={() => addToCart(item)} className="add-btn">➕ Add</button>
-                {currentUser?.role === 'admin' && ( // Only show edit for admin
+                {
                   <button onClick={() => handleEditItem(item)} className="btn btn-orange" style={{ width: '80%', marginTop: '0.5rem', fontSize: '0.85rem', padding: '0.4rem 1.2rem' }}>✏️ Edit</button>
-                )}
+                }
               </div>
             ))}
           </div>
@@ -512,14 +563,14 @@ function App() {
             </div>
           ) : (
             <>
-              {cart.map((item, index) => (
-                <div key={`cart-${index}-${item._id || item.id}`} className="cart-item">
+            {cart.filter(Boolean).map((item, index) => (
+              <div key={`cart-${index}-${item?._id || item?.id || index}`} className="cart-item">
                   <div className="cart-item-info">
-                    <img src={getFoodImage(item.name)} alt={item.name} className="cart-item-image" />
-                    <span className="item-name">{item.name}</span>
+                  <img src={getFoodImage(item?.name || '')} alt={item?.name || 'Food'} className="cart-item-image" />
+                  <span className="item-name">{item?.name || 'Unknown item'}</span>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
-                    <span className="cart-item-price">${item.price.toFixed(2)}</span>
+                  <span className="cart-item-price">${(Number(item?.price) || 0).toFixed(2)}</span>
                     <button onClick={() => removeFromCart(index)} className="btn btn-danger">✕</button>
                   </div>
                 </div>
@@ -528,8 +579,8 @@ function App() {
                 <span>Total</span>
                 <span>${totalPrice.toFixed(2)}</span>
               </div>
-              <button onClick={placeOrder} className="btn btn-green" style={{ width: '100%', marginTop: '1rem', justifyContent: 'center' }}>
-                📦 Place Order
+              <button onClick={placeOrder} className="btn btn-green" style={{ width: '100%', marginTop: '1rem', justifyContent: 'center' }} disabled={isSubmitting}>
+                {isSubmitting ? 'Placing Order...' : '📦 Place Order'}
               </button>
             </>
           )}
