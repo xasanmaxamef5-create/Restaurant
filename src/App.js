@@ -260,9 +260,11 @@ function App() {
 
   // Cart functions
   const addToCart = (item) => {
-    if (!item) return;
-
-    setCart(prevCart => [...prevCart, item]);
+    if (!item) {
+      console.error('Cannot add undefined item to cart');
+      return;
+    }
+    setCart((prevCart) => [...prevCart, item]);
   };
 
   const removeFromCart = (index) => {
@@ -505,7 +507,7 @@ function App() {
 
         {/* Action buttons for Add/Edit */}
         <div style={{ width: '100%', maxWidth: '1200px', marginBottom: '1rem', display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
-          {!editingItem && !showAddItem && (
+          {!editingItem && !showAddItem && ( // Show add button when not editing and not already showing add form
             <button onClick={() => {
               setShowAddItem(true);
               setEditingItem(null); // Ensure edit form is closed
@@ -513,7 +515,7 @@ function App() {
             ➕ Add New Item
           </button>
           )}
-          {showAddItem && (
+          {showAddItem && ( // Show cancel button for add form
             <button onClick={() => {
               setShowAddItem(false);
               setNewItem({ name: '', price: '' });
@@ -522,6 +524,7 @@ function App() {
             }} className="btn btn-danger">
               ✖ Cancel Add
             </button>
+
           )}
         </div>
 
@@ -542,9 +545,9 @@ function App() {
                 <p className="price">${(Number(item?.price) || 0).toFixed(2)}</p>
                 </div>
                 <button onClick={() => addToCart(item)} className="add-btn">➕ Add</button>
-                {
+                { ( // Show edit for all users
                   <button onClick={() => handleEditItem(item)} className="btn btn-orange" style={{ width: '80%', marginTop: '0.5rem', fontSize: '0.85rem', padding: '0.4rem 1.2rem' }}>✏️ Edit</button>
-                }
+                )}
               </div>
             ))}
           </div>
