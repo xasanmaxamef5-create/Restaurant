@@ -6,6 +6,7 @@ import Expenses from './Expenses';
 import Login from './Login';
 import Register from './Register';
 import { getFoodImage } from './foodImages';
+import API_BASE_URL from './apiConfig'; // Import API_BASE_URL
 import { useAuth } from './AuthContext';
 import './App.css';
 
@@ -37,15 +38,11 @@ function App() {
   const [showOrders, setShowOrders] = useState(false);
   const [showSalary, setShowSalary] = useState(false);
   const [showExpenses, setShowExpenses] = useState(false);
-  const [showAddItem, setShowAddItem] = useState(false);
-  const [newItem, setNewItem] = useState({
-    name: '',
-    price: '',
-  });
-  const [imageFile, setImageFile] = useState(null);
-  const [editingItem, setEditingItem] = useState(null); // New state for editing
+
   const [showChangePassword, setShowChangePassword] = useState(false);
-  const [imagePreview, setImagePreview] = useState(getFoodImage('')); // Use the default from getFoodImage
+  // Removed imagePreview as it's only for add/edit forms
+  // const [imagePreview, setImagePreview] = useState(getFoodImage('')); // Use the default from getFoodImage
+
   const [passwordData, setPasswordData] = useState({
     oldPassword: '',
     newPassword: '',
@@ -55,6 +52,17 @@ function App() {
   const [isSubmitting, setIsSubmitting] = useState(false); // To prevent double submissions
   
   const { isAuthenticated, currentUser, logout, loading: authLoading } = useAuth();
+
+  // Helper function to get image URL, now using API_BASE_URL
+  const getImageUrl = (image, name) => {
+    if (!image) return getFoodImage(name);
+
+    // If the image path is already an absolute URL (e.g., from an external CDN or already fully qualified)
+    if (image.startsWith('http://') || image.startsWith('https://')) return image;
+
+    // Otherwise, prepend the API_BASE_URL
+    return `${API_BASE_URL}${image}`;
+  };
 
   // Fetch menu
   const fetchMenu = async () => {
@@ -78,74 +86,6 @@ function App() {
   if (authLoading || !isAuthenticated) {
     return <AuthPortal />;
   }
-
-  // Add new item
-  const addNewItem = async () => {
-    if (isSubmitting) return;
-    setIsSubmitting(true);
-
-    if (!newItem.name || !newItem.price) {
-      alert('Please enter item name and price!');
-      setIsSubmitting(false);
-      return;
-    }
-
-    const formData = new FormData();
-    formData.append('name', newItem.name);
-    formData.append('price', parseFloat(newItem.price));
-    if (imageFile) {
-      formData.append('image', imageFile); // Append the actual file
-    }
-
-    try {
-      // Assuming backend endpoint for adding menu items is /api/admin/menu
-      // and it returns the newly created item with its _id and image URL
-      const response = await api.post('/api/admin/menu', formData); // Backend returns { success, message, data }
-      const addedItem = response.data?.data;
-
-      // Revoke temporary URL if it was a local file preview
-      if (imageFile) {
-        URL.revokeObjectURL(imagePreview);
-      }
-
-      if (!addedItem) {
-        throw new Error('Backend did not return created menu item');
-      }
-
-      setMenuItems((prevItems) => [...prevItems.filter(Boolean), addedItem]);
-      setNewItem({ name: '', price: '' });
-      setImageFile(null);
-      setImagePreview(getFoodImage(''));
-      setEditingItem(null); // Ensure edit form is closed
-      setShowAddItem(false);
-      alert(`✅ "${addedItem.name}" added to menu!`);
-    } catch (error) {
-      console.error('Error adding new menu item:', error);
-      alert('Failed to add new menu item. Please try again.');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  // Handle editing an item (pre-fill form)
-  const handleEditItem = (item) => {
-    if (!item) {
-      return; // Prevent setting state with undefined
-    }
-    setEditingItem(item);
-    setNewItem({ name: item.name, price: item.price.toString() }); // Pre-fill form
-    setImagePreview(item.image || getFoodImage('')); // Use existing image or default
-    setShowAddItem(false); // Ensure add form is closed
-    setImageFile(null); // Clear file input for edit, user can re-upload
-  };
-
-  // Cancel editing an item
-  const handleCancelEdit = () => {
-    setEditingItem(null);
-    setNewItem({ name: '', price: '' });
-    setImagePreview(getFoodImage(''));
-    setImageFile(null);
-  };
 
   // Change password
   const handleChangePassword = async () => {
@@ -190,72 +130,6 @@ function App() {
   const handlePasswordFormChange = (e) => {
     setPasswordData({ ...passwordData, [e.target.name]: e.target.value });
     setPasswordMessage({ type: '', text: '' });
-  };
-
-  // Handle updating an item (save changes to backend)
-  const handleUpdateItem = async () => { // Make it async
-    if (!editingItem || isSubmitting) return;
-
-    const itemId = editingItem._id || editingItem.id;
-
-    if (!itemId) {
-      alert('❌ Menu item ID lama helin.');
-      return;
-    }
-
-    if (!newItem?.name || !newItem?.price) {
-      alert('Please enter item name and price!');
-      return;
-    }
-
-    setIsSubmitting(true);
-
-    const formData = new FormData();
-    formData.append('name', newItem.name.trim());
-    formData.append('price', parseFloat(newItem.price));
-
-    if (imageFile) {
-      formData.append('image', imageFile);
-    }
-
-    try {
-      const response = await api.put(
-        `/api/admin/menu/${itemId}`,
-        formData
-      );
-
-      // Backend-kaaga wuxuu soo celiyaa data, ma aha item
-      const updatedItem = response.data?.data;
-
-      if (!updatedItem) {
-        throw new Error('Backend did not return updated menu item');
-      }
-
-      const updatedId = updatedItem._id || updatedItem.id;
-
-      if (!updatedId) {
-        throw new Error('Updated menu item has no ID');
-      }
-
-      setMenuItems((prevItems) =>
-        prevItems
-          .filter(Boolean)
-          .map((item) => {
-            if (!item) return item;
-            const itemId = item._id || item.id;
-            return itemId === updatedId ? updatedItem : item;
-          })
-      );
-
-      handleCancelEdit();
-
-      alert(`✅ "${updatedItem.name}" updated successfully!`);
-    } catch (error) {
-      console.error('Error updating menu item:', error.response?.data || error);
-      alert(error.response?.data?.message || 'Failed to update menu item. Please try again.');
-    } finally {
-      setIsSubmitting(false);
-    }
   };
 
   // Cart functions
@@ -439,122 +313,6 @@ function App() {
             </div>
           </div>
         )}
-        
-        {/* Edit Item Form */}
-        {showAddItem && (
-          <div className="add-item-form">
-            <h3>📝 Add New Menu Item</h3>
-            <div className="form-row">
-              <input
-                id="menu-item-name"
-                name="name"
-                type="text"
-                placeholder="Item Name"
-                value={newItem.name}
-                onChange={(e) => setNewItem({ ...newItem, name: e.target.value })}
-              />
-              <input
-                id="menu-item-price"
-                name="price"
-                type="number"
-                placeholder="Price ($)"
-                value={newItem.price}
-                onChange={(e) => setNewItem({ ...newItem, price: e.target.value })} step="0.01"
-              />
-            </div>
-            <div className="form-row">
-              <input 
-                type="file" 
-                accept="image/*"
-                onChange={(e) => {
-                  const file = e.target.files[0];
-                  if (file) {
-                    setImageFile(file);
-                    setImagePreview(URL.createObjectURL(file));
-                  } else {
-                    // User cancelled file selection, reset to default
-                    setImageFile(null);
-                    setImagePreview(getFoodImage(''));
-                  }
-                }}
-              />
-              {imagePreview && <img src={imagePreview} alt="Preview" style={{ width: '50px', height: '50px', borderRadius: '8px', objectFit: 'cover' }} />}
-              <button onClick={addNewItem} className="save-btn" style={{ marginLeft: 'auto' }} disabled={isSubmitting}>
-                {isSubmitting ? 'Adding...' : '💾 Add to Menu'}
-              </button>
-            </div>
-          </div>
-        )}
-        
-        {editingItem && ( // Show edit form if an item is being edited
-          <div className="add-item-form">
-            <h3>✏️ Edit Menu Item: {editingItem.name}</h3>
-            <div className="form-row">
-              <input
-                id="edit-menu-item-name"
-                name="name"
-                type="text"
-                placeholder="Item Name"
-                value={newItem.name}
-                onChange={(e) => setNewItem({ ...newItem, name: e.target.value })}
-              />
-              <input
-                id="edit-menu-item-price"
-                name="price"
-                type="number"
-                placeholder="Price ($)"
-                value={newItem.price}
-                onChange={(e) => setNewItem({ ...newItem, price: e.target.value })} step="0.01"
-              />
-            </div>
-            <div className="form-row">
-              <input 
-                type="file" 
-                accept="image/*"
-                onChange={(e) => {
-                  const file = e.target.files[0];
-                  if (file) {
-                    setImageFile(file);
-                    setImagePreview(URL.createObjectURL(file));
-                  } else {
-                    setImageFile(null); // Clear the file input
-                    setImagePreview(editingItem.image || getFoodImage('')); // Revert to original image or default
-                  }
-                }}
-              />
-              {imagePreview && <img src={imagePreview} alt="Preview" style={{ width: '50px', height: '50px', borderRadius: '8px', objectFit: 'cover' }} />}
-            </div>
-            <div className="form-row" style={{ justifyContent: 'flex-end' }}>
-              <button onClick={handleCancelEdit} className="btn btn-danger">Cancel</button>
-              <button onClick={handleUpdateItem} className="save-btn" disabled={isSubmitting}>
-                {isSubmitting ? 'Saving...' : '💾 Save Changes'}
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Action buttons for Add/Edit */}
-        <div style={{ width: '100%', maxWidth: '1200px', marginBottom: '1rem', display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
-          {!editingItem && !showAddItem && ( // Show add button when not editing and not already showing add form
-            <button onClick={() => {
-              setShowAddItem(true);
-              setEditingItem(null); // Ensure edit form is closed
-            }} className="btn btn-primary" style={{ background: '#E53935' }}>
-            ➕ Add New Item
-          </button>
-          )}
-          {showAddItem && ( // Show cancel button for add form
-            <button onClick={() => {
-              setShowAddItem(false);
-              setNewItem({ name: '', price: '' });
-              setImageFile(null);
-              setImagePreview(getFoodImage(''));
-            }} className="btn btn-danger">
-              ✖ Cancel Add
-            </button>
-
-          )}
-        </div>
 
         <div className="menu-section">
           <div className="section-title">
@@ -565,19 +323,16 @@ function App() {
           <div className="menu-grid">
           {menuItems.filter(Boolean).map((item) => (
             <div key={item?._id || item?.id} className="menu-card">
-                <div className="card-image">
-                <img src={item?.image || getFoodImage(item?.name || '')} alt={item?.name || 'Menu item'} loading="lazy" />
-                </div>
-                <div className="card-info">
+              <div className="card-image">
+                <img src={getImageUrl(item?.image, item?.name)} alt={item?.name || 'Menu item'} loading="lazy" />
+              </div>
+              <div className="card-info">
                 <h3>{item?.name}</h3>
                 <p className="price">${(Number(item?.price) || 0).toFixed(2)}</p>
-                </div>
-                <button onClick={() => addToCart(item)} className="add-btn">➕ Add</button>
-                { ( // Show edit for all users
-                  <button onClick={() => handleEditItem(item)} className="btn btn-orange" style={{ width: '80%', marginTop: '0.5rem', fontSize: '0.85rem', padding: '0.4rem 1.2rem' }}>✏️ Edit</button>
-                )}
               </div>
-            ))}
+              <button onClick={() => addToCart(item)} className="add-btn">➕ Add</button>
+            </div>
+          ))}
           </div>
         </div>
 
@@ -596,8 +351,8 @@ function App() {
             <>
             {cart.filter(Boolean).map((item, index) => (
               <div key={`cart-${index}-${item?._id || item?.id || index}`} className="cart-item">
-                  <div className="cart-item-info">
-                  <img src={getFoodImage(item?.name || '')} alt={item?.name || 'Food'} className="cart-item-image" />
+                <div className="cart-item-info">
+                  <img src={getImageUrl(item?.image, item?.name)} alt={item?.name || 'Food'} className="cart-item-image" />
                   <span className="item-name">{item?.name || 'Unknown item'}</span>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
